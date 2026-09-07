@@ -108,3 +108,58 @@
 107. Thus Spoke Zarathustra — Friedrich Nietzsche
 108. The Art of War — Sun Tzu
 109. The Idiot — Fyodor Dostoevsky
+110. Meditations — Marcus Aurelius
+111. The Republic — Plato
+112. Beyond Good and Evil — Friedrich Nietzsche
+113. The Myth of Sisyphus — Albert Camus
+114. Sophie's World — Jostein Gaarder
+115. A Short History of Nearly Everything — Bill Bryson
+116. Cosmos — Carl Sagan
+117. The Gene — Siddhartha Mukherjee
+118. The Emperor of All Maladies — Siddhartha Mukherjee
+119. Astrophysics for People in a Hurry — Neil deGrasse Tyson
+120. The Selfish Gene — Richard Dawkins
+121. Silent Spring — Rachel Carson
+122. The Immortal Life of Henrietta Lacks — Rebecca Skloot
+123. How to Lie with Statistics — Darrell Huff
+124. Fermat's Enigma — Simon Singh
+125. Guns, Germs, and Steel — Jared Diamond
+126. A People's History of the United States — Howard Zinn
+127. The Silk Roads — Peter Frankopan
+128. Salt — Mark Kurlansky
+129. Cod — Mark Kurlansky
+130. The Diary of a Young Girl — Anne Frank
+131. Night — Elie Wiesel
+132. All Quiet on the Western Front — Erich Maria Remarque
+133. The Wright Brothers — David McCullough
+134. SPQR — Mary Beard
+135. 1984 — George Orwell
+136. Animal Farm — George Orwell
+137. To Kill a Mockingbird — Harper Lee
+138. The Catcher in the Rye — J.D. Salinger
+139. Brave New World — Aldous Huxley
+140. Crime and Punishment — Fyodor Dostoevsky
+141. Fahrenheit 451 — Ray Bradbury
+142. Lord of the Flies — William Golding
+143. The Great Gatsby — F. Scott Fitzgerald
+144. Frankenstein — Mary Shelley
+145. The Hobbit — J.R.R. Tolkien
+146. One Hundred Years of Solitude — Gabriel García Márquez
+147. Things Fall Apart — Chinua Achebe
+148. The Kite Runner — Khaled Hosseini
+149. Quiet — Susan Cain
+150. Grit — Angela Duckworth
+151. The Body Keeps the Score — Bessel van der Kolk
+152. Flow — Mihaly Csikszentmihalyi
+153. Freakonomics — Steven Levitt & Stephen Dubner
+154. Outliers — Malcolm Gladwell
+155. Bad Blood — John Carreyrou
+156. Make It Stick — Peter C. Brown, Henry Roediger, Mark McDaniel
+157. A Mind for Numbers — Barbara Oakley
+158. Ultralearning — Scott Young
+159. How to Read a Book — Mortimer Adler & Charles Van Doren
+160. Moonwalking with Einstein — Joshua Foer
+161. Digital Minimalism — Cal Newport
+162. How to Take Smart Notes — Sönke Ahrens
+163. On Writing Well — William Zinsser
+164. The Elements of Style — Strunk & White
