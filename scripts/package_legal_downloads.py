@@ -30,24 +30,27 @@ MAX_TOTAL_BYTES = 500 * 1024 * 1024
 
 def extension_for_url(url: str) -> str | None:
     path = urllib.parse.urlparse(url).path.lower()
-    for suffix in (".txt.utf-8", ".epub", ".pdf", ".txt"):
+    for suffix in (".epub3.images", ".epub3.noimages", ".epub.images", ".epub.noimages", ".epub3", ".epub"):
         if path.endswith(suffix):
-            return ".txt" if suffix == ".txt.utf-8" else suffix
+            return ".epub"
+    for suffix in (".txt.utf-8", ".txt.utf8", ".pdf", ".txt"):
+        if path.endswith(suffix):
+            return ".txt" if suffix in {".txt.utf-8", ".txt.utf8"} else suffix
     return None
 
 
-def public_redistribution_license(license_text: str) -> bool:
-    """Only accept clear CC0/Public Domain Mark or CC BY / CC BY-SA licences."""
-    value = license_text.lower().strip()
-    if "creativecommons.org/publicdomain/zero/" in value:
-        return True
-    if "creativecommons.org/publicdomain/mark/" in value:
-        return True
-    if "creativecommons.org/licenses/by/" in value:
-        return True
-    if "creativecommons.org/licenses/by-sa/" in value:
-        return True
-    return False
+def canonical_redistribution_license(license_text: str) -> str | None:
+    """Return a canonical URL only for clearly identified reusable licences."""
+    value = license_text.lower().strip().replace("_", "-")
+    if "creativecommons.org/publicdomain/zero/" in value or value in {"cc0", "cc0-1.0", "cc zero"}:
+        return "https://creativecommons.org/publicdomain/zero/1.0/"
+    if "creativecommons.org/publicdomain/mark/" in value or value in {"pdm", "public domain mark"}:
+        return "https://creativecommons.org/publicdomain/mark/1.0/"
+    if "creativecommons.org/licenses/by-sa/" in value or value in {"cc by-sa", "cc-by-sa", "cc by-sa 4.0", "cc-by-sa-4.0", "creative commons attribution-sharealike 4.0 international"}:
+        return "https://creativecommons.org/licenses/by-sa/4.0/"
+    if "creativecommons.org/licenses/by/" in value or value in {"cc by", "cc-by", "cc by 4.0", "cc-by-4.0", "creative commons attribution 4.0 international"}:
+        return "https://creativecommons.org/licenses/by/4.0/"
+    return None
 
 
 def candidate_for_hit(hit: dict[str, Any]) -> dict[str, Any] | None:
@@ -78,16 +81,16 @@ def candidate_for_hit(hit: dict[str, Any]) -> dict[str, Any] | None:
             "notes": "Project Gutenberg notes that its ebooks are public domain in the United States. The author-death-year screen is a conservative check against South Africa's usual life-plus-50-year term; confirm special cases before redistribution.",
         }
 
-    if source == "OAPEN Library":
-        if host not in OAPEN_HOSTS:
+    if source in {"OAPEN Library", "Directory of Open Access Books (DOAB)"}:
+        allowed_hosts = OAPEN_HOSTS if source == "OAPEN Library" else {"directory.doabooks.org"}
+        if host not in allowed_hosts:
             return None
-        if not public_redistribution_license(notes):
-            return None
-        license_match = re.search(r"Licence:\s*(https?://\S+)", notes)
+        license_match = re.search(r"Licence:\s*(https?://\S+|[^.\n]+)", notes)
         if not license_match:
             return None
-        license_text = license_match.group(1).rstrip(".,;)")
-        if not public_redistribution_license(license_text):
+        raw_license = license_match.group(1).rstrip(".,;)")
+        license_text = canonical_redistribution_license(raw_license)
+        if not license_text:
             return None
         return {
             "book_id": hit.get("book_id"),
@@ -97,7 +100,7 @@ def candidate_for_hit(hit: dict[str, Any]) -> dict[str, Any] | None:
             "url": url,
             "extension": ext,
             "license": license_text,
-            "notes": "OAPEN repository file with an explicit CC0, CC BY or CC BY-SA licence. Preserve attribution and licence notices.",
+            "notes": "Curated open-access repository file with an explicit CC0, CC BY or CC BY-SA licence. Preserve attribution and licence notices.",
         }
 
     # In particular, do not auto-download Internet Archive user uploads just
@@ -137,7 +140,7 @@ def download_candidate(candidate: dict[str, Any], destination: Path) -> int:
     )
     with urllib.request.urlopen(request, timeout=60) as response:
         final_host = (urllib.parse.urlparse(response.geturl()).hostname or "").lower()
-        allowed = GUTENBERG_HOSTS if candidate["source"] == "Project Gutenberg (Gutendex)" else OAPEN_HOSTS
+        allowed = GUTENBERG_HOSTS if candidate["source"] == "Project Gutenberg (Gutendex)" else (OAPEN_HOSTS if candidate["source"] == "OAPEN Library" else {"directory.doabooks.org"})
         if final_host not in allowed:
             raise ValueError(f"download redirected to an unapproved host: {final_host}")
         content_type = response.headers.get_content_type().lower()
@@ -237,7 +240,7 @@ def build_package(report_path: Path, output_dir: Path) -> dict[str, Any]:
         f"Books included: {len(downloaded)}\n"
         f"Total file size: {total_bytes:,} bytes\n\n"
         "Only files from Project Gutenberg that pass a conservative South African author-death-year screen,\n"
-        "and OAPEN repository files carrying explicit CC0, CC BY or CC BY-SA licences, are included.\n"
+        "and OAPEN/DOAB repository files carrying explicit CC0, CC BY or CC BY-SA licences, are included.\n"
         "Internet Archive user uploads, lending-only records, previews, metadata-only entries, and links\n"
         "with unclear or non-redistributable terms are intentionally excluded.\n\n"
         "Keep the original licence and attribution information. See download-manifest.csv and\n"
