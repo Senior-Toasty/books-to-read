@@ -74,6 +74,10 @@ jobs:
           SOURCES: ${{ inputs.sources || 'all' }}
           CONCURRENCY: ${{ inputs.concurrency || 8 }}
         run: |
+          # Keep manual inputs inside BookHunter's supported range.
+          if ! [[ "$CONCURRENCY" =~ ^[0-9]+$ ]]; then CONCURRENCY=8; fi
+          if (( CONCURRENCY < 1 )); then CONCURRENCY=1; fi
+          if (( CONCURRENCY > 32 )); then CONCURRENCY=32; fi
           args=(--output reports --concurrency "$CONCURRENCY")
           if [ -n "$BOOK_ID" ]; then args+=(--book-id "$BOOK_ID"); fi
           if [ "$SOURCES" != "all" ]; then args+=(--sources "$SOURCES"); fi
