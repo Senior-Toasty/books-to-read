@@ -140,7 +140,7 @@ A 164-book reading library organised by subject. The reading order starts with *
 102. Man's Search for Meaning — Viktor Frankl
 103. The Defining Decade — Meg Jay
 104. The Compound Effect — Darren Hardy
-106. The 7 Habits of Highly Effective People — Stephen Covey
+105. The 7 Habits of Highly Effective People — Stephen Covey
 
 ## 7. Philosophy, ethics and critical thinking
 
