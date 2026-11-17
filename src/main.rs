@@ -340,7 +340,7 @@ async fn search_google_books(client: &Client, book: &Book, retry: bool) -> Resul
                 _ => ("Catalogue / access not verified", "A catalogue record is not proof of free full-text access."),
             };
             add_hit(
-                mut hits,
+                &mut hits,
                 book,
                 Source::GoogleBooks,
                 HitCandidate {
@@ -396,7 +396,7 @@ async fn search_open_library(client: &Client, book: &Book, retry: bool) -> Resul
                 _ => ("Catalogue / no ebook access shown", "The record does not currently establish free full-text access."),
             };
             add_hit(
-                mut hits,
+                &mut hits,
                 book,
                 Source::OpenLibrary,
                 HitCandidate {
@@ -439,7 +439,7 @@ async fn search_internet_archive(client: &Client, book: &Book, retry: bool) -> R
             };
             let note = if license.is_empty() { notes.to_string() } else { format!("{notes} Licence: {license}") };
             add_hit(
-                mut hits,
+                &mut hits,
                 book,
                 Source::InternetArchive,
                 HitCandidate {
@@ -514,7 +514,7 @@ async fn search_loc(client: &Client, book: &Book, retry: bool) -> Result<Vec<Hit
                 "Catalogue / digital status unclear"
             };
             add_hit(
-                mut hits,
+                &mut hits,
                 book,
                 Source::Loc,
                 HitCandidate {
