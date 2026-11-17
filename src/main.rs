@@ -778,7 +778,8 @@ async fn write_reports(output: &Path, run: &SearchRun, books: &[Book]) -> Result
             }
             markdown.push('\n');
         } else {
-            markdown.push_str("No API match was confirmed in this run. Try the manual catalogue links below.\n\n");
+            markdown.push_str(book_report_status(book.id, &searched_ids));
+            markdown.push_str(" Try the manual catalogue links below.\n\n");
         }
         markdown.push_str("Manual search shortcuts (not API-verified):\n");
         for (name, url) in manual_search_links(book) {
@@ -807,7 +808,7 @@ async fn write_reports(output: &Path, run: &SearchRun, books: &[Book]) -> Result
                     html_escape(&hit.found_authors), html_escape(&hit.year)));
             }
         } else {
-            html.push_str("<p class=\"muted\">No API match confirmed in this run.</p>");
+            html.push_str(&format!("<p class=\"muted\">{}</p>", html_escape(book_report_status(book.id, &searched_ids))));
         }
         html.push_str("<p><strong>Manual search shortcuts (not API-verified):</strong></p><div class=\"links\">");
         for (name, url) in manual_search_links(book) {
