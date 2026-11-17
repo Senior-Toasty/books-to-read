@@ -25,7 +25,7 @@ struct Args {
     #[arg(long, default_value = "reports")]
     output: PathBuf,
     /// Comma-separated providers: google-books,open-library,internet-archive,gutenberg,loc,wikisource,openalex.
-    #[arg(long, default_value = "open-library,internet-archive,gutenberg,wikisource,openalex,oapen,openaire,crossref,wikidata")]
+    #[arg(long, default_value = "google-books,open-library,internet-archive,gutenberg,loc,wikisource,openalex,oapen,doab,openaire,crossref,wikidata,zenodo")]
     sources: String,
     /// Number of provider requests allowed at once.
     #[arg(long, default_value_t = 8)]
@@ -104,6 +104,8 @@ struct RequestGates {
     openaire: Arc<Semaphore>,
     crossref: Arc<Semaphore>,
     wikidata: Arc<Semaphore>,
+    doab: Arc<Semaphore>,
+    zenodo: Arc<Semaphore>,
 }
 
 impl RequestGates {
@@ -120,6 +122,8 @@ impl RequestGates {
             openaire: Arc::new(Semaphore::new(1)),
             crossref: Arc::new(Semaphore::new(1)),
             wikidata: Arc::new(Semaphore::new(1)),
+            doab: Arc::new(Semaphore::new(1)),
+            zenodo: Arc::new(Semaphore::new(1)),
         }
     }
 }
@@ -137,6 +141,8 @@ enum Source {
     OpenAire,
     Crossref,
     Wikidata,
+    Doab,
+    Zenodo,
 }
 
 impl Source {
@@ -153,6 +159,8 @@ impl Source {
             "openaire" => Some(Self::OpenAire),
             "crossref" => Some(Self::Crossref),
             "wikidata" => Some(Self::Wikidata),
+            "doab" => Some(Self::Doab),
+            "zenodo" => Some(Self::Zenodo),
             _ => None,
         }
     }
@@ -170,6 +178,8 @@ impl Source {
             Self::OpenAire => "OpenAIRE Graph",
             Self::Crossref => "Crossref",
             Self::Wikidata => "Wikidata",
+            Self::Doab => "Directory of Open Access Books (DOAB)",
+            Self::Zenodo => "Zenodo",
         }
     }
 
@@ -186,6 +196,8 @@ impl Source {
             Self::OpenAire => "openaire",
             Self::Crossref => "crossref",
             Self::Wikidata => "wikidata",
+            Self::Doab => "doab",
+            Self::Zenodo => "zenodo",
         }
     }
 
@@ -1029,6 +1041,16 @@ async fn search_source(
             sleep(Duration::from_millis(1200)).await;
             Some(permit)
         }
+        Source::Doab => {
+            let permit = gates.doab.clone().acquire_owned().await?;
+            sleep(Duration::from_millis(1200)).await;
+            Some(permit)
+        }
+        Source::Zenodo => {
+            let permit = gates.zenodo.clone().acquire_owned().await?;
+            sleep(Duration::from_millis(1200)).await;
+            Some(permit)
+        }
     };
     match source {
         Source::GoogleBooks => search_google_books(client, book, retry).await,
@@ -1042,6 +1064,8 @@ async fn search_source(
         Source::OpenAire => search_openaire(client, book, retry).await,
         Source::Crossref => search_crossref(client, book, retry).await,
         Source::Wikidata => search_wikidata(client, book, retry).await,
+        Source::Doab => search_doab(client, book, retry).await,
+        Source::Zenodo => search_zenodo(client, book, retry).await,
     }
 }
 
