@@ -253,11 +253,11 @@ fn match_confidence(book: &Book, candidate_title: &str, candidate_authors: &str)
 
     // Require a close title, or the complete original title plus a strong author match.
     // This rejects near-misses like "The Lost Art of War" for "The Art of War".
-    let close_title = title_score >= 0.72;
+    let close_title = title_score >= 0.85;
     let exact_title_with_author = has_author
-        && title_score >= 0.45
-        && title_coverage >= 0.95
-        && author_score >= 0.75;
+        && title_score >= 0.55
+        && title_coverage >= 0.75
+        && author_score >= 0.80;
     if !close_title && !exact_title_with_author {
         return None;
     }
