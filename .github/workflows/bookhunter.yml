@@ -1,6 +1,9 @@
 name: BookHunter search
 
 on:
+  push:
+    paths:
+      - '.github/workflows/bookhunter.yml'
   workflow_dispatch:
     inputs:
       retry_failed:
