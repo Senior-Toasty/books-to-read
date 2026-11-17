@@ -49,7 +49,7 @@ jobs:
         run: cargo run --release -- --help
       - name: Run a one-book catalogue smoke search
         run: |
-          cargo run --release -- --book-id 8 --sources google-books,gutenberg --concurrency 2 --output smoke-reports
+          cargo run --release -- --book-id 8 --sources open-library,loc --concurrency 2 --retry-failed --output smoke-reports
           test -s smoke-reports/bookhunter-results.html
           test -s smoke-reports/bookhunter-results.json
           python3 - <<'PY'
@@ -58,7 +58,8 @@ jobs:
           report = json.loads(Path("smoke-reports/bookhunter-results.json").read_text())
           assert report["total_books"] == 164, report
           assert report["searched_books"] == 1, report
-          print(f"Smoke search completed: {len(report['hits'])} matches, {len(report['errors'])} provider errors.")
+          assert not report["errors"], report["errors"]
+          print(f"Smoke search completed: {len(report['hits'])} catalogue matches with no provider errors.")
           PY
       - name: Upload one-book smoke report
         if: always()
