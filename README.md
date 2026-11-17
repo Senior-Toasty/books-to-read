@@ -163,3 +163,11 @@
 162. How to Take Smart Notes — Sönke Ahrens
 163. On Writing Well — William Zinsser
 164. The Elements of Style — Strunk & White
+
+---
+
+## BookHunter (Rust)
+
+This repository now includes **BookHunter**, a Rust application that searches legal free-reading and open-access catalogues for the books in [README2.md](README2.md). It exports HTML, JSON, CSV and Markdown reports, and can be run from a phone through GitHub Actions without installing Rust.
+
+Start with [BOOKHUNTER.md](BOOKHUNTER.md) for setup, sources, access labels and instructions for running a search from the GitHub mobile website. The original reading-list files are retained.

@@ -1,0 +1,90 @@
+name: BookHunter search
+
+on:
+  workflow_dispatch:
+    inputs:
+      book_id:
+        description: "Optional book number (1-164). Leave blank to search all books."
+        required: false
+        type: string
+      retry_empty:
+        description: "Retry only books with no matches in the latest successful report."
+        required: false
+        default: false
+        type: boolean
+      retry_failed:
+        description: "Use extra retries for temporary network errors and rate limits."
+        required: false
+        default: true
+        type: boolean
+      sources:
+        description: "Comma-separated API source IDs, or 'all'."
+        required: false
+        default: "all"
+        type: string
+      concurrency:
+        description: "Maximum simultaneous requests (1-32)."
+        required: false
+        default: 8
+        type: number
+  schedule:
+    - cron: "17 3 1 * *"
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: bookhunter-search
+  cancel-in-progress: false
+
+jobs:
+  search:
+    name: Search the 164-book list
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Install stable Rust
+        uses: dtolnay/rust-toolchain@stable
+      - name: Cache Cargo
+        uses: Swatinem/rust-cache@v2
+      - name: Build BookHunter
+        run: cargo build --release
+      - name: Restore previous report for retry-empty mode
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.retry_empty }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p reports/previous
+          previous_run="$(gh run list --workflow 'bookhunter.yml' --status success --limit 5 --json databaseId --jq '.[0].databaseId // empty')"
+          if [ -n "$previous_run" ]; then
+            gh run download "$previous_run" --name bookhunter-report --dir reports/previous || true
+            previous_json="$(find reports/previous -name bookhunter-results.json -type f -print -quit)"
+            if [ -n "$previous_json" ]; then
+              cp "$previous_json" reports/bookhunter-results.json
+            fi
+          fi
+      - name: Run BookHunter
+        env:
+          BOOK_ID: ${{ inputs.book_id || '' }}
+          RETRY_EMPTY: ${{ inputs.retry_empty || false }}
+          RETRY_FAILED: ${{ inputs.retry_failed || true }}
+          SOURCES: ${{ inputs.sources || 'all' }}
+          CONCURRENCY: ${{ inputs.concurrency || 8 }}
+        run: |
+          args=(--output reports --concurrency "$CONCURRENCY")
+          if [ -n "$BOOK_ID" ]; then args+=(--book-id "$BOOK_ID"); fi
+          if [ "$SOURCES" != "all" ]; then args+=(--sources "$SOURCES"); fi
+          if [ "$RETRY_EMPTY" = "true" ]; then args+=(--retry-empty); fi
+          if [ "$RETRY_FAILED" = "true" ]; then args+=(--retry-failed); fi
+          cargo run --release -- "${args[@]}"
+      - name: Upload HTML, JSON, CSV and Markdown reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: bookhunter-report
+          path: reports/
+          if-no-files-found: warn
+          retention-days: 30
