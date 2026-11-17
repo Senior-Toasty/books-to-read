@@ -85,7 +85,7 @@ def candidate_for_hit(hit: dict[str, Any]) -> dict[str, Any] | None:
         allowed_hosts = OAPEN_HOSTS if source == "OAPEN Library" else {"directory.doabooks.org"}
         if host not in allowed_hosts:
             return None
-        license_match = re.search(r"Licence:\s*(https?://\S+|.+?)(?:\.\s+Item page:|$)", notes)
+        license_match = re.search(r"Licence:\s*(https?://\S+|.+?)(?:\.\s+Item page:|$)", notes, re.IGNORECASE)
         if not license_match:
             return None
         raw_license = license_match.group(1).rstrip(".,;)")
