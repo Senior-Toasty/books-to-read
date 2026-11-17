@@ -8,12 +8,16 @@ on:
       - "src/**"
       - "scripts/**"
       - "BOOKHUNTER.md"
+      - "README2.md"
       - ".github/workflows/ci.yml"
   pull_request:
     branches: [main]
     paths:
       - "Cargo.toml"
       - "src/**"
+      - "scripts/**"
+      - "BOOKHUNTER.md"
+      - "README2.md"
       - ".github/workflows/ci.yml"
   workflow_dispatch:
 
