@@ -58,8 +58,13 @@ jobs:
           report = json.loads(Path("smoke-reports/bookhunter-results.json").read_text())
           assert report["total_books"] == 164, report
           assert report["searched_books"] == 1, report
+          assert report["searched_book_ids"] == [8], report
           assert not report["errors"], report["errors"]
-          print(f"Smoke search completed: {len(report['hits'])} catalogue matches with no provider errors.")
+          html = Path("smoke-reports/bookhunter-results.html").read_text()
+          assert "Not searched in this run" in html
+          csv_header = Path("smoke-reports/bookhunter-results.csv").read_text().splitlines()[0]
+          assert csv_header.startswith("book_id,book_title,book_author,source"), csv_header
+          print(f"Smoke search completed: {len(report['hits'])} catalogue matches, correct partial-list labels, and no provider errors.")
           PY
       - name: Upload one-book smoke report
         if: always()
