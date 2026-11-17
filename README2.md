@@ -216,9 +216,6 @@ A 164-book reading library organised by subject. The reading order starts with *
 163. Things Fall Apart — Chinua Achebe
 164. The Kite Runner — Khaled Hosseini
 
-## 12. Relationships and emotional maturity
-
-164. How to Be an Adult in Relationships — David Richo
 
 ---
 
