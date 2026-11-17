@@ -90,7 +90,7 @@ class CandidateRulesTest(unittest.TestCase):
             "book_author": "Author",
             "source": "Directory of Open Access Books (DOAB)",
             "url": "https://untrusted.example/book.pdf",
-            "notes": "DOAB metadata says the item licence is: https://creativecommons.org/licenses/by/4.0/. Item page: https://directory.doabooks.org/handle/123",
+            "notes": "Licence: https://creativecommons.org/licenses/by/4.0/. Item page: https://directory.doabooks.org/handle/123",
         }
         self.assertIsNone(candidate_for_hit(hit))
 
