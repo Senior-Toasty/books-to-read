@@ -91,17 +91,25 @@ struct SearchRun {
 
 #[derive(Clone)]
 struct RequestGates {
+    google_books: Arc<Semaphore>,
     open_library: Arc<Semaphore>,
+    internet_archive: Arc<Semaphore>,
+    gutenberg: Arc<Semaphore>,
     loc: Arc<Semaphore>,
     wikisource: Arc<Semaphore>,
+    openalex: Arc<Semaphore>,
 }
 
 impl RequestGates {
     fn new() -> Self {
         Self {
+            google_books: Arc::new(Semaphore::new(1)),
             open_library: Arc::new(Semaphore::new(1)),
+            internet_archive: Arc::new(Semaphore::new(1)),
+            gutenberg: Arc::new(Semaphore::new(1)),
             loc: Arc::new(Semaphore::new(1)),
             wikisource: Arc::new(Semaphore::new(1)),
+            openalex: Arc::new(Semaphore::new(1)),
         }
     }
 }
@@ -290,18 +298,23 @@ async fn get_json(client: &Client, url: &str, retry_failed: bool) -> Result<Valu
     let attempts = if retry_failed { 4 } else { 2 };
     let mut last_error = String::from("request failed");
     for attempt in 0..attempts {
+        let mut retry_after = None;
         match client.get(url).send().await {
             Ok(response) if response.status().is_success() => {
                 return response.json::<Value>().await.context("The source returned invalid JSON");
             }
             Ok(response) if is_temporary_status(response.status()) => {
+                retry_after = response.headers().get(reqwest::header::RETRY_AFTER)
+                    .and_then(|value| value.to_str().ok())
+                    .and_then(|value| value.parse::<u64>().ok())
+                    .map(|seconds| seconds.min(60));
                 last_error = format!("temporary HTTP status {}", response.status());
             }
             Ok(response) => bail!("HTTP {}", response.status()),
-            Err(error) => last_error = error.to_string(),
+            Err(error) => last_error = format!("{error:#}"),
         }
         if attempt + 1 < attempts {
-            let seconds = 1u64 << attempt.min(3);
+            let seconds = retry_after.unwrap_or_else(|| 1u64 << attempt.min(3));
             sleep(Duration::from_secs(seconds)).await;
         }
     }
@@ -628,8 +641,23 @@ async fn search_source(
     gates: &RequestGates,
 ) -> Result<Vec<Hit>> {
     let _rate_guard = match source {
+        Source::GoogleBooks => {
+            let permit = gates.google_books.clone().acquire_owned().await?;
+            sleep(Duration::from_millis(1100)).await;
+            Some(permit)
+        }
         Source::OpenLibrary => {
             let permit = gates.open_library.clone().acquire_owned().await?;
+            sleep(Duration::from_millis(1100)).await;
+            Some(permit)
+        }
+        Source::InternetArchive => {
+            let permit = gates.internet_archive.clone().acquire_owned().await?;
+            sleep(Duration::from_millis(750)).await;
+            Some(permit)
+        }
+        Source::Gutenberg => {
+            let permit = gates.gutenberg.clone().acquire_owned().await?;
             sleep(Duration::from_millis(1100)).await;
             Some(permit)
         }
@@ -643,7 +671,11 @@ async fn search_source(
             sleep(Duration::from_millis(1100)).await;
             Some(permit)
         }
-        _ => None,
+        Source::OpenAlex => {
+            let permit = gates.openalex.clone().acquire_owned().await?;
+            sleep(Duration::from_millis(750)).await;
+            Some(permit)
+        }
     };
     match source {
         Source::GoogleBooks => search_google_books(client, book, retry).await,
