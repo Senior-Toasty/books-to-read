@@ -45,6 +45,29 @@ jobs:
         run: cargo test --all-targets
       - name: Build release binary
         run: cargo build --release
+      - name: Smoke-test the BookHunter CLI
+        run: cargo run --release -- --help
+      - name: Run a one-book catalogue smoke search
+        run: |
+          cargo run --release -- --book-id 8 --sources google-books,gutenberg --concurrency 2 --output smoke-reports
+          test -s smoke-reports/bookhunter-results.html
+          test -s smoke-reports/bookhunter-results.json
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          report = json.loads(Path("smoke-reports/bookhunter-results.json").read_text())
+          assert report["total_books"] == 164, report
+          assert report["searched_books"] == 1, report
+          print(f"Smoke search completed: {len(report['hits'])} matches, {len(report['errors'])} provider errors.")
+          PY
+      - name: Upload one-book smoke report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: bookhunter-smoke-report
+          path: smoke-reports/
+          if-no-files-found: warn
+          retention-days: 7
       - name: Save rustfmt output for repository update
         if: always()
         uses: actions/upload-artifact@v4
