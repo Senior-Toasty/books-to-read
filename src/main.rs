@@ -85,6 +85,8 @@ struct SearchRun {
     list_file: String,
     total_books: usize,
     searched_books: usize,
+    #[serde(default)]
+    searched_book_ids: Vec<u16>,
     hits: Vec<Hit>,
     errors: Vec<SearchError>,
 }
@@ -734,13 +736,25 @@ fn manual_search_links(book: &Book) -> Vec<(&'static str, String)> {
     ]
 }
 
+fn book_report_status(book_id: u16, searched_ids: &HashSet<u16>) -> &'static str {
+    if searched_ids.contains(&book_id) {
+        "Searched, but no API match was confirmed. Check source errors below if providers failed."
+    } else {
+        "Not searched in this run. Run a full scan to check this title."
+    }
+}
+
 async fn write_reports(output: &Path, run: &SearchRun, books: &[Book]) -> Result<()> {
     tokio::fs::create_dir_all(output).await?;
     let json = serde_json::to_string_pretty(run)?;
     tokio::fs::write(output.join("bookhunter-results.json"), json).await?;
 
     let csv_path = output.join("bookhunter-results.csv");
-    let mut writer = csv::Writer::from_path(&csv_path)?;
+    let mut writer = csv::WriterBuilder::new().has_headers(false).from_path(&csv_path)?;
+    writer.write_record([
+        "book_id", "book_title", "book_author", "source", "found_title",
+        "found_authors", "year", "url", "access", "confidence", "notes",
+    ])?;
     for hit in &run.hits {
         writer.serialize(hit)?;
     }
@@ -754,6 +768,7 @@ async fn write_reports(output: &Path, run: &SearchRun, books: &[Book]) -> Result
 
     let mut by_book: BTreeMap<u16, Vec<&Hit>> = BTreeMap::new();
     for hit in &run.hits { by_book.entry(hit.book_id).or_default().push(hit); }
+    let searched_ids = run.searched_book_ids.iter().copied().collect::<HashSet<_>>();
     for book in books {
         markdown.push_str(&format!("## {}. {} — {}\n\n*{}*\n\n", book.id, book.title, book.author, book.category));
         if let Some(items) = by_book.get(&book.id) {
@@ -874,6 +889,10 @@ async fn main() -> Result<()> {
 
     let total_list_books = parse_books(&markdown).len();
     let searched_books = books.len() + previous_hit_books.len();
+    let mut searched_book_ids = books.iter().map(|book| book.id).collect::<Vec<_>>();
+    searched_book_ids.extend(previous_hit_books.iter().copied());
+    searched_book_ids.sort_unstable();
+    searched_book_ids.dedup();
     let jobs: Vec<(Book, Source)> = books.iter().flat_map(|book| {
         sources.iter().map(move |source| (book.clone(), *source))
     }).collect();
@@ -915,6 +934,7 @@ async fn main() -> Result<()> {
                 list_file: args.list.display().to_string(),
                 total_books: total_list_books,
                 searched_books,
+                searched_book_ids: searched_book_ids.clone(),
                 hits: carried_forward_hits.iter().cloned().chain(hits.iter().cloned()).collect(),
                 errors: carried_forward_errors.iter().cloned().chain(errors.iter().cloned()).collect(),
             };
@@ -931,6 +951,7 @@ async fn main() -> Result<()> {
         list_file: args.list.display().to_string(),
         total_books: total_list_books,
         searched_books,
+        searched_book_ids,
         hits,
         errors,
     };
@@ -981,6 +1002,13 @@ mod tests {
         let book = Book { id: 1, title: "Flow".into(), author: "Mihaly Csikszentmihalyi".into(), category: "Test".into() };
         assert!(match_confidence(&book, "Flow", "").is_some());
         assert!(match_confidence(&book, "Flow State", "").is_none());
+    }
+
+    #[test]
+    fn report_distinguishes_unsearched_books_from_no_matches() {
+        let searched = HashSet::from([8u16, 12u16]);
+        assert!(book_report_status(8, &searched).starts_with("Searched"));
+        assert!(book_report_status(9, &searched).starts_with("Not searched"));
     }
 
     #[test]
