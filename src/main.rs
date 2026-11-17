@@ -558,8 +558,14 @@ async fn search_gutenberg(client: &Client, book: &Book, retry: bool) -> Result<V
             let url = preferred.map(value_string).filter(|s| !s.is_empty())
                 .unwrap_or_else(|| format!("https://www.gutenberg.org/ebooks/{id}"));
             let year = String::new();
-            let author_death_years = item.get("authors").and_then(Value::as_array).map(|people| people.iter().map(|person| object_string(person, "death_year")).filter(|value| !value.is_empty()).collect::<Vec<_>>()).unwrap_or_default();
-            let rights_note = author_death_years.first().map(|year| format!(" Author death year: {year}.")).unwrap_or_default();
+            let authors_data = item.get("authors").and_then(Value::as_array);
+            let author_death_years = authors_data.map(|people| people.iter().map(|person| object_string(person, "death_year")).collect::<Vec<_>>()).unwrap_or_default();
+            let rights_note = if !author_death_years.is_empty() && author_death_years.iter().all(|year| !year.is_empty()) {
+                author_death_years.iter().filter_map(|year| year.parse::<i32>().ok()).max()
+                    .map(|year| format!(" Latest author death year: {year}.")).unwrap_or_default()
+            } else {
+                String::new()
+            };
             add_hit(
                 &mut hits,
                 book,
