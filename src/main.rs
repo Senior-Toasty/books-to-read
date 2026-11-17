@@ -265,17 +265,26 @@ fn overlap_score(left: &str, right: &str) -> f32 {
     intersection / union
 }
 
+fn author_overlap_score(left: &str, right: &str) -> f32 {
+    // Ignore middle initials so records with different initial formatting still match.
+    let a = token_set(left).into_iter().filter(|token| token.chars().count() > 1).collect::<HashSet<_>>();
+    let b = token_set(right).into_iter().filter(|token| token.chars().count() > 1).collect::<HashSet<_>>();
+    if a.is_empty() || b.is_empty() {
+        return 0.0;
+    }
+    if a == b {
+        return 1.0;
+    }
+    let intersection = a.intersection(&b).count() as f32;
+    let union = a.union(&b).count() as f32;
+    intersection / union
+}
+
 fn match_confidence(book: &Book, candidate_title: &str, candidate_authors: &str) -> Option<f32> {
     let book_tokens = token_set(&book.title);
     let candidate_tokens = token_set(candidate_title);
     let title_score = overlap_score(&book.title, candidate_title);
     let title_tokens = book_tokens.len();
-
-    // Short titles such as "Flow" or "Quiet" need a near-exact title match.
-    if title_tokens <= 2 && title_score < 0.82 {
-        return None;
-    }
-
     let title_coverage = if book_tokens.is_empty() {
         0.0
     } else {
@@ -284,23 +293,32 @@ fn match_confidence(book: &Book, candidate_title: &str, candidate_authors: &str)
     let has_author = !candidate_authors.trim().is_empty()
         && !book.author.eq_ignore_ascii_case("unknown");
     let author_score = if has_author {
-        overlap_score(&book.author, candidate_authors)
+        author_overlap_score(&book.author, candidate_authors)
     } else {
         0.0
     };
 
-    // Require a close title, or the complete original title plus a strong author match.
-    // This rejects near-misses like "The Lost Art of War" for "The Art of War".
+    // A complete title embedded in a longer subtitle can still be a true match,
+    // but short titles and subtitle matches must also agree on the author.
     let close_title = title_score >= 0.85;
-    let exact_title_with_author = has_author
-        && title_score >= 0.55
-        && title_coverage >= 0.75
-        && author_score >= 0.80;
-    if !close_title && !exact_title_with_author {
+    let title_and_author_confirmed = has_author && title_coverage >= 0.90 && author_score >= 0.80;
+    if title_tokens <= 2 && title_score < 0.82 && !title_and_author_confirmed {
         return None;
     }
 
-    let score = if has_author {
+    // The author requirement keeps near-misses such as "The Lost Art of War"
+    // from being accepted for "The Art of War".
+    let exact_title_with_author = has_author
+        && title_score >= 0.50
+        && title_coverage >= 0.75
+        && author_score >= 0.80;
+    if !close_title && !title_and_author_confirmed && !exact_title_with_author {
+        return None;
+    }
+
+    let score = if title_and_author_confirmed {
+        (title_coverage * 0.72) + (author_score * 0.28)
+    } else if has_author {
         (title_score * 0.72) + (author_score * 0.28)
     } else {
         title_score
@@ -1472,6 +1490,36 @@ mod tests {
         let searched = HashSet::from([8u16, 12u16]);
         assert!(book_report_status(8, &searched).starts_with("Searched"));
         assert!(book_report_status(9, &searched).starts_with("Not searched"));
+    }
+
+    #[test]
+    fn full_titles_with_subtitles_match_when_authors_agree() {
+        let book = Book {
+            id: 10,
+            title: "Nudge".into(),
+            author: "Richard Thaler & Cass Sunstein".into(),
+            category: "Test".into(),
+        };
+        assert!(match_confidence(
+            &book,
+            "Nudge: Improving Decisions About Health, Wealth, and Happiness",
+            "Richard H. Thaler; Cass R. Sunstein",
+        ).is_some());
+    }
+
+    #[test]
+    fn middle_initials_do_not_break_multi_author_matches() {
+        let book = Book {
+            id: 57,
+            title: "The Innovator's Solution".into(),
+            author: "Clayton Christensen & Michael Raynor".into(),
+            category: "Test".into(),
+        };
+        assert!(match_confidence(
+            &book,
+            "The Innovator's Solution: Creating and Sustaining Successful Growth",
+            "Clayton M. Christensen; Michael E. Raynor",
+        ).is_some());
     }
 
     #[test]
