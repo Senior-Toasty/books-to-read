@@ -978,6 +978,92 @@ async fn search_wikidata(client: &Client, book: &Book, retry: bool) -> Result<Ve
 }
 
 
+
+async fn search_doab(client: &Client, book: &Book, retry: bool) -> Result<Vec<Hit>> {
+    let query = format!("dc.title:\"{}\"", book.title.replace('"', " "));
+    let url = format!(
+        "https://directory.doabooks.org/rest/search?query={}&expand=metadata,bitstreams&limit=10",
+        urlencoding::encode(&query)
+    );
+    let data = get_json(client, &url, retry).await?;
+    let mut hits = Vec::new();
+    for item in search_result_items(&data) {
+        let title = metadata_values(item, "dc.title").first().cloned()
+            .or_else(|| item.get("name").map(value_string)).unwrap_or_default();
+        let authors = metadata_values(item, "dc.contributor.author").into_iter()
+            .chain(metadata_values(item, "dc.contributor.editor")).collect::<Vec<_>>().join("; ");
+        let year = metadata_values(item, "dc.date.issued").first().cloned().unwrap_or_default();
+        let license = metadata_values(item, "dc.rights.uri").first().cloned()
+            .or_else(|| metadata_values(item, "dc.rights").first().cloned()).unwrap_or_default();
+        let handle = item.get("handle").map(value_string).unwrap_or_default();
+        let landing = if handle.is_empty() {
+            item.get("uuid").map(|id| format!("https://directory.doabooks.org/items/{}", value_string(id))).unwrap_or_default()
+        } else {
+            format!("https://directory.doabooks.org/handle/{handle}")
+        };
+        let direct = oapen_download_url(item);
+        let url = direct.clone().unwrap_or_else(|| landing.clone());
+        let access = if !license.is_empty() {
+            "DOAB open-access book record (check specific licence)"
+        } else {
+            "DOAB book metadata (licence needs review)"
+        };
+        let notes = if license.is_empty() {
+            format!("DOAB record for an open-access book. Confirm the book's own licence and download page: {landing}")
+        } else {
+            format!("DOAB metadata says the item licence is: {license}. Confirm the exact licence and edition on the source page: {landing}")
+        };
+        add_hit(&mut hits, book, Source::Doab, HitCandidate {
+            title, authors, year, url, access: access.to_string(), notes,
+        });
+    }
+    Ok(hits)
+}
+
+async fn search_zenodo(client: &Client, book: &Book, retry: bool) -> Result<Vec<Hit>> {
+    let primary_author = book.author.split('&').next().unwrap_or(&book.author)
+        .split(" and ").next().unwrap_or(&book.author).trim();
+    let query = format!("metadata.title:\"{}\" AND ({} OR {})",
+        book.title.replace('"', " "), primary_author, primary_author.replace(' ', "\\\\ "));
+    let url = format!(
+        "https://zenodo.org/api/records?q={}&size=10",
+        urlencoding::encode(&query)
+    );
+    let data = get_json(client, &url, retry).await?;
+    let items = data.pointer("/hits/hits").and_then(Value::as_array)
+        .or_else(|| data.get("results").and_then(Value::as_array))
+        .or_else(|| data.as_array());
+    let mut hits = Vec::new();
+    if let Some(items) = items {
+        for item in items {
+            let metadata = item.get("metadata").unwrap_or(item);
+            let title = object_string(metadata, "title");
+            let authors = metadata.get("creators").and_then(Value::as_array).map(|people| {
+                people.iter().map(|person| object_string(person, "name"))
+                    .filter(|name| !name.is_empty()).collect::<Vec<_>>().join("; ")
+            }).unwrap_or_default();
+            let year = object_string(metadata, "publication_date");
+            let license = metadata.pointer("/license/id").map(value_string)
+                .or_else(|| metadata.pointer("/license/title").map(value_string))
+                .unwrap_or_default();
+            let id = object_string(item, "id");
+            let url = item.pointer("/links/html").map(value_string)
+                .filter(|value| !value.is_empty())
+                .unwrap_or_else(|| format!("https://zenodo.org/records/{id}"));
+            let resource_type = metadata.pointer("/resource_type/title").map(value_string)
+                .or_else(|| metadata.pointer("/resource_type/type").map(value_string))
+                .unwrap_or_default();
+            add_hit(&mut hits, book, Source::Zenodo, HitCandidate {
+                title, authors, year, url,
+                access: "Zenodo repository record (licence/file verification required)".to_string(),
+                notes: format!("Zenodo record. Resource type: {resource_type}. Record licence metadata: {license}. This is a repository record, not an automatic-download authorisation; review the exact file and rightsholder licence."),
+            });
+        }
+    }
+    Ok(hits)
+}
+
+
 async fn search_source(
     client: &Client,
     book: &Book,
