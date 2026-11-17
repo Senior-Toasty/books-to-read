@@ -16,7 +16,7 @@ The app makes API requests to seven sources:
 | wikisource | English Wikisource MediaWiki API | Candidate public-domain/free source-text pages |
 | openalex | OpenAlex Works API | Open-access scholarly works related to a title; not necessarily the book itself |
 
-BookHunter also puts clearly labelled manual search shortcuts for WorldCat, HathiTrust, Google Books, Google, Bing, DuckDuckGo, Brave Search, Google Scholar, Project Gutenberg, Standard Ebooks, Wikisource and Europeana into every report. These are **search links, not automated integrations or verified search results**.
+BookHunter also puts clearly labelled manual search shortcuts for WorldCat, HathiTrust, Google Books, Google, Bing, DuckDuckGo, Brave Search, Google Scholar, DOAB, the OAPEN Library, CORE, publisher and university websites, Project Gutenberg, Standard Ebooks, Wikisource and Europeana into every report. These are **search links, not automated integrations or verified search results**.
 
 Providers whose public APIs require keys or formal access, including some WorldCat, HathiTrust, Europeana, DPLA and CORE endpoints, are not falsely presented as integrated. They can be added when legitimate credentials and API terms are available.
 
@@ -27,6 +27,7 @@ Providers whose public APIs require keys or formal access, including some WorldC
 - OpenAlex hits may be papers or chapters rather than the requested book.
 - Project Gutenberg's public-domain status is based on its stated distribution terms and may not match copyright status in every country. Check the law that applies where you are.
 - BookHunter only links to sources. It does not bypass paywalls, DRM, borrowing controls or access restrictions, and it does not download copyrighted books from unauthorised mirrors.
+- OceanofPDF is intentionally not integrated or listed as a book-search target: it is identified by the Authors Guild as an ebook piracy site, and its published terms state that users should be at least 18. Use the legal open-access and library sources above instead.
 - Always open the result and verify the exact edition, author, licence and access conditions.
 
 ## Run locally
