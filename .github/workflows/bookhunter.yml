@@ -58,9 +58,9 @@ jobs:
         run: cargo build --release
       - name: Run full BookHunter search
         env:
-          RETRY_FAILED: \${{ inputs.retry_failed || github.event_name != 'workflow_dispatch' }}
-          SOURCES: \${{ inputs.sources || 'all' }}
-          CONCURRENCY: \${{ inputs.concurrency || 4 }}
+          RETRY_FAILED: ${{ inputs.retry_failed || github.event_name != 'workflow_dispatch' }}
+          SOURCES: ${{ inputs.sources || 'all' }}
+          CONCURRENCY: ${{ inputs.concurrency || 4 }}
         run: |
           if ! [[ "$CONCURRENCY" =~ ^[0-9]+$ ]]; then CONCURRENCY=4; fi
           if (( CONCURRENCY < 1 )); then CONCURRENCY=1; fi
@@ -68,7 +68,7 @@ jobs:
           args=(--output reports --concurrency "$CONCURRENCY")
           if [ "$SOURCES" != "all" ]; then args+=(--sources "$SOURCES"); fi
           if [ "$RETRY_FAILED" = "true" ]; then args+=(--retry-failed); fi
-          cargo run --release -- "\${args[@]}"
+          cargo run --release -- "${args[@]}"
       - name: Verify that every reading-list entry was searched
         run: |
           python3 - <<'PY'
@@ -103,8 +103,8 @@ jobs:
         if: success() && github.ref == 'refs/heads/main'
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: bookhunter-\${{ github.run_number }}-\${{ github.run_attempt }}
-          name: BookHunter Results \${{ github.run_number }}.\${{ github.run_attempt }}
+          tag_name: bookhunter-${{ github.run_number }}-${{ github.run_attempt }}
+          name: BookHunter Results ${{ github.run_number }}.${{ github.run_attempt }}
           body_path: downloads/RELEASE_NOTES.md
           files: |
             downloads/bookhunter-books.zip
@@ -117,4 +117,4 @@ jobs:
           fail_on_unmatched_files: true
           make_latest: true
         env:
-          GITHUB_TOKEN: \${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
