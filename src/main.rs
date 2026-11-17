@@ -25,7 +25,7 @@ struct Args {
     #[arg(long, default_value = "reports")]
     output: PathBuf,
     /// Comma-separated providers: google-books,open-library,internet-archive,gutenberg,loc,wikisource,openalex.
-    #[arg(long, default_value = "google-books,open-library,internet-archive,gutenberg,loc,wikisource,openalex")]
+    #[arg(long, default_value = "open-library,internet-archive,gutenberg,wikisource,openalex,oapen,openaire,crossref,wikidata")]
     sources: String,
     /// Number of provider requests allowed at once.
     #[arg(long, default_value_t = 8)]
@@ -100,6 +100,10 @@ struct RequestGates {
     loc: Arc<Semaphore>,
     wikisource: Arc<Semaphore>,
     openalex: Arc<Semaphore>,
+    oapen: Arc<Semaphore>,
+    openaire: Arc<Semaphore>,
+    crossref: Arc<Semaphore>,
+    wikidata: Arc<Semaphore>,
 }
 
 impl RequestGates {
@@ -112,6 +116,10 @@ impl RequestGates {
             loc: Arc::new(Semaphore::new(1)),
             wikisource: Arc::new(Semaphore::new(1)),
             openalex: Arc::new(Semaphore::new(1)),
+            oapen: Arc::new(Semaphore::new(1)),
+            openaire: Arc::new(Semaphore::new(1)),
+            crossref: Arc::new(Semaphore::new(1)),
+            wikidata: Arc::new(Semaphore::new(1)),
         }
     }
 }
@@ -125,6 +133,10 @@ enum Source {
     Loc,
     Wikisource,
     OpenAlex,
+    Oapen,
+    OpenAire,
+    Crossref,
+    Wikidata,
 }
 
 impl Source {
@@ -137,6 +149,10 @@ impl Source {
             "loc" | "library-of-congress" => Some(Self::Loc),
             "wikisource" => Some(Self::Wikisource),
             "openalex" => Some(Self::OpenAlex),
+            "oapen" => Some(Self::Oapen),
+            "openaire" => Some(Self::OpenAire),
+            "crossref" => Some(Self::Crossref),
+            "wikidata" => Some(Self::Wikidata),
             _ => None,
         }
     }
@@ -150,6 +166,10 @@ impl Source {
             Self::Loc => "Library of Congress",
             Self::Wikisource => "Wikisource",
             Self::OpenAlex => "OpenAlex",
+            Self::Oapen => "OAPEN Library",
+            Self::OpenAire => "OpenAIRE Graph",
+            Self::Crossref => "Crossref",
+            Self::Wikidata => "Wikidata",
         }
     }
 
@@ -162,6 +182,10 @@ impl Source {
             Self::Loc => "loc",
             Self::Wikisource => "wikisource",
             Self::OpenAlex => "openalex",
+            Self::Oapen => "oapen",
+            Self::OpenAire => "openaire",
+            Self::Crossref => "crossref",
+            Self::Wikidata => "wikidata",
         }
     }
 
@@ -319,11 +343,11 @@ fn add_hit(hits: &mut Vec<Hit>, book: &Book, source: Source, candidate: HitCandi
 }
 
 async fn get_json(client: &Client, url: &str, retry_failed: bool) -> Result<Value> {
-    let attempts = if retry_failed { 4 } else { 2 };
+    let attempts = if retry_failed { 5 } else { 2 };
     let mut last_error = String::from("request failed");
     for attempt in 0..attempts {
         let mut retry_after = None;
-        match client.get(url).send().await {
+        match client.get(url).header(reqwest::header::ACCEPT, "application/json").send().await {
             Ok(response) if response.status().is_success() => {
                 return response.json::<Value>().await.context("The source returned invalid JSON");
             }
@@ -338,7 +362,7 @@ async fn get_json(client: &Client, url: &str, retry_failed: bool) -> Result<Valu
             Err(error) => last_error = format!("{error:#}"),
         }
         if attempt + 1 < attempts {
-            let seconds = retry_after.unwrap_or_else(|| 1u64 << attempt.min(3));
+            let seconds = retry_after.unwrap_or_else(|| 1u64 << attempt.min(4));
             sleep(Duration::from_secs(seconds)).await;
         }
     }
@@ -355,7 +379,8 @@ fn search_query(book: &Book) -> String {
     if book.author.eq_ignore_ascii_case("unknown") {
         book.title.clone()
     } else {
-        format!("{} {}", book.title, book.author)
+        let primary_author = book.author.split('&').next().unwrap_or(&book.author).split(" and ").next().unwrap_or(&book.author).trim();
+        format!("{} {}", book.title, primary_author)
     }
 }
 
@@ -525,12 +550,16 @@ async fn search_gutenberg(client: &Client, book: &Book, retry: bool) -> Result<V
             }).unwrap_or_default();
             let id = object_string(item, "id");
             let formats = &item["formats"];
-            let preferred = formats.get("text/html")
-                .or_else(|| formats.get("application/epub+zip"))
-                .or_else(|| formats.get("application/pdf"));
+            let preferred = formats.get("application/epub+zip")
+                .or_else(|| formats.get("application/pdf"))
+                .or_else(|| formats.get("text/plain; charset=utf-8"))
+                .or_else(|| formats.get("text/plain"))
+                .or_else(|| formats.get("text/html"));
             let url = preferred.map(value_string).filter(|s| !s.is_empty())
                 .unwrap_or_else(|| format!("https://www.gutenberg.org/ebooks/{id}"));
             let year = String::new();
+            let author_death_years = item.get("authors").and_then(Value::as_array).map(|people| people.iter().map(|person| object_string(person, "death_year")).filter(|value| !value.is_empty()).collect::<Vec<_>>()).unwrap_or_default();
+            let rights_note = author_death_years.first().map(|year| format!(" Author death year: {year}.")).unwrap_or_default();
             add_hit(
                 &mut hits,
                 book,
@@ -541,7 +570,7 @@ async fn search_gutenberg(client: &Client, book: &Book, retry: bool) -> Result<V
                     year,
                     url,
                     access: "Public-domain full text (Project Gutenberg)".to_string(),
-                    notes: "Project Gutenberg distributes its catalogue under its stated terms. Public-domain status can differ by country; check local copyright law, especially outside the United States.".to_string(),
+                    notes: format!("Project Gutenberg states this ebook is public domain in the United States; verify local copyright status before redistribution.{rights_note}"),
                 },
             );
         }
@@ -667,7 +696,7 @@ async fn search_source(
     let _rate_guard = match source {
         Source::GoogleBooks => {
             let permit = gates.google_books.clone().acquire_owned().await?;
-            sleep(Duration::from_millis(1100)).await;
+            sleep(Duration::from_millis(3500)).await;
             Some(permit)
         }
         Source::OpenLibrary => {
@@ -687,7 +716,7 @@ async fn search_source(
         }
         Source::Loc => {
             let permit = gates.loc.clone().acquire_owned().await?;
-            sleep(Duration::from_millis(3100)).await;
+            sleep(Duration::from_millis(4500)).await;
             Some(permit)
         }
         Source::Wikisource => {
@@ -887,9 +916,9 @@ async fn main() -> Result<()> {
     }
 
     let client = Client::builder()
-        .user_agent("BookHunter/0.1 (+https://github.com/Senior-Toasty/books-to-read)")
-        .timeout(Duration::from_secs(25))
-        .connect_timeout(Duration::from_secs(10))
+        .user_agent("BookHunter/0.2 (+https://github.com/Senior-Toasty/books-to-read)")
+        .timeout(Duration::from_secs(40))
+        .connect_timeout(Duration::from_secs(12))
         .build()?;
 
     let total_list_books = parse_books(&markdown).len();
