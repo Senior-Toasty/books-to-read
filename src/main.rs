@@ -729,7 +729,7 @@ async fn write_reports(output: &Path, run: &SearchRun, books: &[Book]) -> Result
     html.push_str(&format!("<header><h1>BookHunter results</h1><p>Generated {} · {} books searched · {} matches · {} source errors</p><p class=\"muted\">API-backed results are separated from manual search shortcuts. A listing is not proof of lawful unrestricted access.</p></header>",
         html_escape(&run.generated_at.to_rfc3339()), run.searched_books, run.hits.len(), run.errors.len()));
     for book in books {
-        html.push_str(&format!("<section class=\"book\"><h2>{}. {} <small>— {}</small></h2>", book.id, html_escape(&book.title), html_escape(&book.author)));
+        html.push_str(&format!("<section class=\"book\"><h2>{}. {} <small>— {}</small></h2><p class=\"muted\">{}</p>", book.id, html_escape(&book.title), html_escape(&book.author), html_escape(&book.category)));
         if let Some(items) = by_book.get(&book.id) {
             for hit in items {
                 html.push_str(&format!("<article class=\"hit\"><strong>{}</strong> · <span class=\"tag\">{}</span> · match confidence {:.0}%<br><a href=\"{}\" target=\"_blank\" rel=\"noopener\">{}</a><p>{}</p><small>{} {}</small></article>",
