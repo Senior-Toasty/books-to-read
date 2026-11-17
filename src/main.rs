@@ -686,6 +686,280 @@ async fn search_openalex(client: &Client, book: &Book, retry: bool) -> Result<Ve
     Ok(hits)
 }
 
+
+fn metadata_values(value: &Value, key: &str) -> Vec<String> {
+    let mut values = Vec::new();
+    if let Some(metadata) = value.get("metadata") {
+        if let Some(field) = metadata.get(key) {
+            collect_text_values(field, &mut values);
+        }
+        if let Some(entries) = metadata.as_array() {
+            for entry in entries {
+                if entry.get("key").and_then(Value::as_str) == Some(key) {
+                    if let Some(field_value) = entry.get("value") {
+                        collect_text_values(field_value, &mut values);
+                    }
+                }
+            }
+        }
+    }
+    values.sort();
+    values.dedup();
+    values
+}
+
+fn collect_text_values(value: &Value, output: &mut Vec<String>) {
+    match value {
+        Value::String(text) if !text.trim().is_empty() => output.push(text.trim().to_string()),
+        Value::Number(number) => output.push(number.to_string()),
+        Value::Array(items) => {
+            for item in items {
+                if let Some(text) = item.get("value") {
+                    collect_text_values(text, output);
+                } else {
+                    collect_text_values(item, output);
+                }
+            }
+        }
+        Value::Object(object) => {
+            if let Some(text) = object.get("value") {
+                collect_text_values(text, output);
+            } else if let Some(text) = object.get("name") {
+                collect_text_values(text, output);
+            }
+        }
+        _ => {}
+    }
+}
+
+fn collect_oapen_bitstreams(value: &Value, output: &mut Vec<(String, String)>) {
+    match value {
+        Value::Array(items) => {
+            for item in items {
+                collect_oapen_bitstreams(item, output);
+            }
+        }
+        Value::Object(object) => {
+            let name = object.get("name").map(value_string).unwrap_or_default();
+            let format = object.get("format").map(value_string).unwrap_or_default().to_lowercase();
+            let mime = object.get("mimeType").map(value_string).unwrap_or_default().to_lowercase();
+            let is_book_file = name.to_lowercase().ends_with(".pdf")
+                || name.to_lowercase().ends_with(".epub")
+                || format.contains("pdf")
+                || format.contains("epub")
+                || mime.contains("pdf")
+                || mime.contains("epub");
+            if is_book_file {
+                let link = object.get("retrieveLink")
+                    .or_else(|| object.get("downloadUrl"))
+                    .or_else(|| object.get("link"))
+                    .map(value_string)
+                    .unwrap_or_default();
+                if !link.is_empty() {
+                    output.push((name, link));
+                }
+            }
+            for child in object.values() {
+                collect_oapen_bitstreams(child, output);
+            }
+        }
+        _ => {}
+    }
+}
+
+fn oapen_download_url(item: &Value) -> Option<String> {
+    let mut files = Vec::new();
+    collect_oapen_bitstreams(item.get("bitstreams").unwrap_or(item), &mut files);
+    files.into_iter().find_map(|(name, link)| {
+        let link = if link.starts_with("http://") || link.starts_with("https://") {
+            link
+        } else if link.starts_with('/') {
+            format!("https://library.oapen.org{link}")
+        } else {
+            format!("https://library.oapen.org/{link}")
+        };
+        let value = if name.is_empty() { &link } else { &name };
+        let lower = value.to_lowercase();
+        if lower.ends_with(".pdf") || lower.ends_with(".epub") {
+            Some(link)
+        } else {
+            None
+        }
+    })
+}
+
+fn search_result_items(data: &Value) -> Vec<&Value> {
+    data.pointer("/searchResult/searchResults/entry").and_then(Value::as_array)
+        .or_else(|| data.pointer("/searchResult/searchResults").and_then(Value::as_array))
+        .or_else(|| data.pointer("/results").and_then(Value::as_array))
+        .or_else(|| data.pointer("/searchResult/results").and_then(Value::as_array))
+        .map(|items| items.iter().collect())
+        .unwrap_or_default()
+}
+
+async fn search_oapen(client: &Client, book: &Book, retry: bool) -> Result<Vec<Hit>> {
+    let query = format!("dc.title:\"{}\"", book.title.replace('"', " "));
+    let url = format!(
+        "https://library.oapen.org/rest/search?query={}&expand=metadata,bitstreams&limit=10",
+        urlencoding::encode(&query)
+    );
+    let data = get_json(client, &url, retry).await?;
+    let mut hits = Vec::new();
+    for item in search_result_items(&data) {
+        let title = metadata_values(item, "dc.title").first().cloned()
+            .or_else(|| item.get("name").map(value_string)).unwrap_or_default();
+        let authors = metadata_values(item, "dc.contributor.author").into_iter()
+            .chain(metadata_values(item, "dc.contributor.editor")).collect::<Vec<_>>().join("; ");
+        let year = metadata_values(item, "dc.date.issued").first().cloned().unwrap_or_default();
+        let license = metadata_values(item, "dc.rights.uri").first().cloned()
+            .or_else(|| metadata_values(item, "dc.rights").first().cloned()).unwrap_or_default();
+        let handle = item.get("handle").map(value_string).unwrap_or_default();
+        let landing = if handle.is_empty() {
+            item.get("uuid").map(|id| format!("https://library.oapen.org/items/{}", value_string(id))).unwrap_or_default()
+        } else {
+            format!("https://library.oapen.org/handle/{handle}")
+        };
+        let direct = oapen_download_url(item);
+        let url = direct.unwrap_or_else(|| landing.clone());
+        let access = if license.to_lowercase().contains("creativecommons.org") || license.to_lowercase().contains("publicdomain") {
+            "Open-access book (OAPEN; licence metadata listed)"
+        } else {
+            "OAPEN catalogue record (licence needs review)"
+        };
+        let notes = if license.is_empty() {
+            format!("OAPEN catalogue record. Confirm the item licence and file availability on the publisher repository page: {landing}")
+        } else {
+            format!("OAPEN publisher repository record. Licence: {license}. Item page: {landing}. Downloads are packaged only when the licence explicitly permits redistribution.")
+        };
+        add_hit(&mut hits, book, Source::Oapen, HitCandidate {
+            title, authors, year, url, access: access.to_string(), notes,
+        });
+    }
+    Ok(hits)
+}
+
+async fn search_crossref(client: &Client, book: &Book, retry: bool) -> Result<Vec<Hit>> {
+    let primary_author = book.author.split('&').next().unwrap_or(&book.author)
+        .split(" and ").next().unwrap_or(&book.author).trim();
+    let query = format!("{} {}", book.title, primary_author);
+    let url = format!(
+        "https://api.crossref.org/works?query.bibliographic={}&rows=20",
+        urlencoding::encode(&query)
+    );
+    let data = get_json(client, &url, retry).await?;
+    let mut hits = Vec::new();
+    if let Some(items) = data.pointer("/message/items").and_then(Value::as_array) {
+        for item in items {
+            let kind = object_string(item, "type").to_lowercase();
+            if !["book", "monograph", "edited-book", "reference-book", "book-series", "book-set", "book-chapter"].contains(&kind.as_str()) {
+                continue;
+            }
+            let title = item.get("title").and_then(Value::as_array)
+                .and_then(|items| items.first()).map(value_string).unwrap_or_default();
+            let authors = item.get("author").and_then(Value::as_array).map(|items| {
+                items.iter().map(|person| {
+                    format!("{} {}", object_string(person, "given"), object_string(person, "family")).trim().to_string()
+                }).filter(|name| !name.is_empty()).collect::<Vec<_>>().join("; ")
+            }).unwrap_or_default();
+            let year = item.pointer("/published/date-parts/0/0").map(value_string).unwrap_or_default();
+            let doi = object_string(item, "DOI");
+            let landing = object_string(item, "URL");
+            let url = if !landing.is_empty() { landing } else if !doi.is_empty() {
+                format!("https://doi.org/{doi}")
+            } else {
+                continue;
+            };
+            add_hit(&mut hits, book, Source::Crossref, HitCandidate {
+                title, authors, year, url,
+                access: "Bibliographic metadata only (Crossref)".to_string(),
+                notes: "Crossref verifies bibliographic metadata, not an ebook download or free full text. Follow the publisher or DOI link to check lawful access.".to_string(),
+            });
+        }
+    }
+    Ok(hits)
+}
+
+fn collect_named_people(value: &Value, output: &mut Vec<String>) {
+    match value {
+        Value::Array(items) => {
+            for item in items { collect_named_people(item, output); }
+        }
+        Value::Object(object) => {
+            for key in ["fullName", "displayName", "name"] {
+                if let Some(name) = object.get(key).and_then(Value::as_str) {
+                    if !name.trim().is_empty() { output.push(name.trim().to_string()); }
+                }
+            }
+            if output.is_empty() {
+                for child in object.values() { collect_named_people(child, output); }
+            }
+        }
+        Value::String(name) if !name.trim().is_empty() => output.push(name.trim().to_string()),
+        _ => {}
+    }
+}
+
+async fn search_openaire(client: &Client, book: &Book, retry: bool) -> Result<Vec<Hit>> {
+    let query = search_query(book);
+    let url = format!(
+        "https://api.openaire.eu/graph/v4/research-products?search={}&page=1&page_size=10",
+        urlencoding::encode(&query)
+    );
+    let data = get_json(client, &url, retry).await?;
+    let mut hits = Vec::new();
+    if let Some(items) = data.get("results").and_then(Value::as_array) {
+        for item in items {
+            let title = object_string(item, "mainTitle").or_else_empty(object_string(item, "title"));
+            let mut names = Vec::new();
+            if let Some(authors_value) = item.get("authors").or_else(|| item.get("author")) {
+                collect_named_people(authors_value, &mut names);
+            }
+            let authors = names.join("; ");
+            let year = object_string(item, "publicationDate");
+            let id = object_string(item, "id");
+            let url = item.pointer("/instances/0/webUrl").map(value_string)
+                .or_else(|| item.pointer("/instances/0/url").map(value_string))
+                .filter(|value| !value.is_empty())
+                .unwrap_or_else(|| if id.starts_with("http") { id.clone() } else {
+                    format!("https://explore.openaire.eu/search/publication?pid={}", urlencoding::encode(&id))
+                });
+            let oa_note = item.pointer("/bestAccessRight/label").map(value_string)
+                .unwrap_or_else(|| "OpenAIRE research-product record".to_string());
+            add_hit(&mut hits, book, Source::OpenAire, HitCandidate {
+                title, authors, year, url,
+                access: "OpenAIRE research record (verify book/full-text status)".to_string(),
+                notes: format!("{oa_note}. OpenAIRE includes articles and other research products; this result is not automatically treated as a downloadable book."),
+            });
+        }
+    }
+    Ok(hits)
+}
+
+async fn search_wikidata(client: &Client, book: &Book, retry: bool) -> Result<Vec<Hit>> {
+    let query = search_query(book);
+    let url = format!(
+        "https://www.wikidata.org/w/api.php?action=wbsearchentities&search={}&language=en&format=json&limit=10",
+        urlencoding::encode(&query)
+    );
+    let data = get_json(client, &url, retry).await?;
+    let mut hits = Vec::new();
+    if let Some(items) = data.get("search").and_then(Value::as_array) {
+        for item in items {
+            let title = object_string(item, "label");
+            let id = object_string(item, "id");
+            if id.is_empty() { continue; }
+            add_hit(&mut hits, book, Source::Wikidata, HitCandidate {
+                title, authors: String::new(), year: String::new(),
+                url: format!("https://www.wikidata.org/wiki/{id}"),
+                access: "Bibliographic metadata only (Wikidata)".to_string(),
+                notes: format!("Wikidata entity record. Description: {}. This is metadata, not a full-text download.", object_string(item, "description")),
+            });
+        }
+    }
+    Ok(hits)
+}
+
+
 async fn search_source(
     client: &Client,
     book: &Book,
@@ -726,7 +1000,27 @@ async fn search_source(
         }
         Source::OpenAlex => {
             let permit = gates.openalex.clone().acquire_owned().await?;
-            sleep(Duration::from_millis(750)).await;
+            sleep(Duration::from_millis(1200)).await;
+            Some(permit)
+        }
+        Source::Oapen => {
+            let permit = gates.oapen.clone().acquire_owned().await?;
+            sleep(Duration::from_millis(1200)).await;
+            Some(permit)
+        }
+        Source::OpenAire => {
+            let permit = gates.openaire.clone().acquire_owned().await?;
+            sleep(Duration::from_millis(1200)).await;
+            Some(permit)
+        }
+        Source::Crossref => {
+            let permit = gates.crossref.clone().acquire_owned().await?;
+            sleep(Duration::from_millis(1200)).await;
+            Some(permit)
+        }
+        Source::Wikidata => {
+            let permit = gates.wikidata.clone().acquire_owned().await?;
+            sleep(Duration::from_millis(1200)).await;
             Some(permit)
         }
     };
@@ -738,6 +1032,10 @@ async fn search_source(
         Source::Loc => search_loc(client, book, retry).await,
         Source::Wikisource => search_wikisource(client, book, retry).await,
         Source::OpenAlex => search_openalex(client, book, retry).await,
+        Source::Oapen => search_oapen(client, book, retry).await,
+        Source::OpenAire => search_openaire(client, book, retry).await,
+        Source::Crossref => search_crossref(client, book, retry).await,
+        Source::Wikidata => search_wikidata(client, book, retry).await,
     }
 }
 
