@@ -908,7 +908,9 @@ fn collect_named_people(value: &Value, output: &mut Vec<String>) {
                     if !name.trim().is_empty() { output.push(name.trim().to_string()); }
                 }
             }
-            if output.is_empty() {
+            let has_named_value = ["fullName", "displayName", "name"].iter()
+                .any(|key| object.get(*key).and_then(Value::as_str).map(|name| !name.trim().is_empty()).unwrap_or(false));
+            if !has_named_value {
                 for child in object.values() { collect_named_people(child, output); }
             }
         }
@@ -1023,8 +1025,7 @@ async fn search_doab(client: &Client, book: &Book, retry: bool) -> Result<Vec<Hi
 async fn search_zenodo(client: &Client, book: &Book, retry: bool) -> Result<Vec<Hit>> {
     let primary_author = book.author.split('&').next().unwrap_or(&book.author)
         .split(" and ").next().unwrap_or(&book.author).trim();
-    let query = format!("metadata.title:\"{}\" AND ({} OR {})",
-        book.title.replace('"', " "), primary_author, primary_author.replace(' ', "\\\\ "));
+    let query = format!("metadata.title:\"{}\"", book.title.replace('"', " "));
     let url = format!(
         "https://zenodo.org/api/records?q={}&size=10",
         urlencoding::encode(&query)
