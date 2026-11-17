@@ -1,82 +1,103 @@
 # BookHunter
 
-BookHunter is a Rust command-line application for finding legitimate access routes to the books in this repository's numbered reading list. It reads **README2.md directly**. The list is not copied into a separate dataset, so the source of truth remains the existing 164-book file.
+BookHunter is a Rust application for discovering books from the numbered reading list in README2.md. It searches public catalogue and open-access APIs, records source errors, produces phone-friendly reports, and builds one ZIP containing only files that pass conservative redistribution checks.
 
-## What it searches
+## Automated discovery sources
 
-The app makes API requests to seven sources:
+BookHunter currently supports eleven API integrations:
 
-| Source ID | Provider | What the result can establish |
+| Source ID | Provider | What it is useful for |
 |---|---|---|
 | google-books | Google Books Books API | Edition metadata, preview/full-view status and reported PDF/EPUB availability |
-| open-library | Open Library Search API | Edition/work records, public ebook access or lending status |
-| internet-archive | Internet Archive Advanced Search | Archive records, licence metadata and restricted-access hints |
-| gutenberg | Gutendex / Project Gutenberg | Public-domain catalogue entries and available reading formats |
-| loc | Library of Congress JSON API | Catalogue and digitised-item records |
-| wikisource | English Wikisource MediaWiki API | Candidate public-domain/free source-text pages |
-| openalex | OpenAlex Works API | Open-access scholarly works related to a title; not necessarily the book itself |
+| open-library | Open Library Search API | Work/edition records, public ebook status and lending status |
+| internet-archive | Internet Archive Advanced Search | Archive records, licence metadata and borrowing restrictions |
+| gutenberg | Gutendex / Project Gutenberg | Public-domain catalogue entries and available ebook formats |
+| loc | Library of Congress JSON API | Digitised collection records |
+| wikisource | English Wikisource MediaWiki API | Candidate public-domain/free source texts |
+| openalex | OpenAlex Works API | Open-access scholarly works related to a title |
+| oapen | OAPEN Library REST API | Open-access scholarly books, repository licences and PDF/EPUB bitstreams |
+| openaire | OpenAIRE Graph API | Open research products and repository records; some may be articles rather than books |
+| crossref | Crossref REST API | Book, monograph, edited-book and book-chapter bibliographic records |
+| wikidata | Wikidata entity search API | Additional bibliographic metadata and entity records |
 
-BookHunter also puts clearly labelled manual search shortcuts for WorldCat, HathiTrust, Google Books, Google, Bing, DuckDuckGo, Brave Search, Google Scholar, DOAB, the OAPEN Library, CORE, publisher and university websites, Project Gutenberg, Standard Ebooks, Wikisource and Europeana into every report. These are **search links, not automated integrations or verified search results**.
+The default scan uses Open Library, Internet Archive, Project Gutenberg, Wikisource, OpenAlex, OAPEN, OpenAIRE, Crossref and Wikidata. Google Books and the Library of Congress remain selectable, but are not in the default set because the last full-list run encountered persistent rate-limit responses from those providers.
 
-Providers whose public APIs require keys or formal access, including some WorldCat, HathiTrust, Europeana, DPLA and CORE endpoints, are not falsely presented as integrated. They can be added when legitimate credentials and API terms are available.
+Each result is a candidate, not a guarantee that the requested edition exists or is free. OpenAIRE and OpenAlex can return related scholarly papers. Crossref and Wikidata supply metadata, not ebooks. Open Library results may require borrowing.
+
+## Downloads and releases
+
+Every successful full search runs the packaging script and creates downloads/bookhunter-books.zip. A GitHub Release is created for that run and includes the ZIP plus the HTML, Markdown and JSON search reports.
+
+The ZIP only includes:
+
+- OAPEN PDF/EPUB files with an explicit CC0, CC BY or CC BY-SA licence. The original source URL and licence are retained in the manifest.
+- Project Gutenberg EPUB/PDF/text files where Gutendex lists death years for all authors and the latest co-author death year is 1975 or earlier. This is a conservative screen aligned with South Africa's usual life-plus-50-year term for literary works. It is not a substitute for checking unusual rights situations.
+
+The package intentionally excludes:
+
+- Internet Archive user uploads, even when an item's metadata displays a Creative Commons or Public Domain Mark URL. An uploader-supplied label alone is not enough verification for automatic redistribution.
+- Borrow-only or print-disabled lending records, previews, catalogue-only hits, metadata-only records, and records with unclear or non-redistributable licences.
+- OAPEN licences outside the explicit redistribution allow-list, such as non-commercial or no-derivatives variants.
+
+If no candidate passes these checks, the workflow still creates the ZIP with its README and manifest explaining why no book files were included. It does not fill the archive with questionable copies just to make the download count look impressive.
 
 ## Important access and copyright rules
 
-- A catalogue hit is not proof that a complete book is free.
-- The reports distinguish public-domain full text, open access, borrowing, preview, catalogue-only and related scholarly records.
-- OpenAlex hits may be papers or chapters rather than the requested book.
-- Project Gutenberg's public-domain status is based on its stated distribution terms and may not match copyright status in every country. Check the law that applies where you are.
-- BookHunter only links to sources. It does not bypass paywalls, DRM, borrowing controls or access restrictions, and it does not download copyrighted books from unauthorised mirrors.
-- OceanofPDF is intentionally not integrated or listed as a book-search target: it is identified by the Authors Guild as an ebook piracy site, and its published terms state that users should be at least 18. Use the legal open-access and library sources above instead.
-- Always open the result and verify the exact edition, author, licence and access conditions.
+- A catalogue hit is not proof of a complete, lawful, unrestricted ebook.
+- Never bypass paywalls, DRM, borrowing controls or account restrictions.
+- Project Gutenberg states its own US public-domain terms; the author-death-year screen is intended to reduce territorial risk in South Africa. Confirm edge cases before redistribution.
+- South African Copyright Act section 3 generally gives literary works copyright for the author's life plus 50 years from the end of the year of death. Joint authorship uses the last surviving author.
+- Always check the precise edition, licence and source page before sharing a file.
+
+## Manual discovery shortcuts
+
+The HTML and Markdown reports also include manual links to WorldCat, HathiTrust, Google Books, Google, Bing, DuckDuckGo, Brave Search, Google Scholar, DOAB, OAPEN, CORE, OpenAIRE, Crossref, Wikidata, DPLA, Smithsonian Open Access, Biodiversity Heritage Library, Gallica, Europeana, Project Gutenberg, Standard Ebooks, Wikisource, the Library of Congress, Internet Archive, publisher sites and university sites.
+
+Some services, including DPLA, Smithsonian and Biodiversity Heritage Library API endpoints, require an API key. They are listed as manual discovery routes and are not falsely described as active API integrations.
 
 ## Run locally
 
-Install a current stable Rust toolchain, then run:
+Install a current stable Rust toolchain and Python 3, then run:
 
-```bash
+~~~bash
 cargo run --release -- --help
 cargo run --release -- --output reports
-```
+python3 scripts/package_legal_downloads.py --report reports/bookhunter-results.json --output downloads
+~~~
 
-Search a single book:
+Choose sources and limit request concurrency:
 
-```bash
-cargo run --release -- --book-id 1
-```
+~~~bash
+cargo run --release -- --sources open-library,internet-archive,gutenberg,oapen,openaire,crossref,wikidata --concurrency 4 --retry-failed
+~~~
 
-Choose providers and limit request concurrency:
+Search one book:
 
-```bash
-cargo run --release -- --sources google-books,open-library,gutenberg --concurrency 4 --retry-failed
-```
-
-Retry only books with no matches in a previous report in the same output directory:
-
-```bash
-cargo run --release -- --retry-empty --retry-failed
-```
-
-Reports are generated as:
-
-- `reports/bookhunter-results.html` — phone-friendly results page with clickable links
-- `reports/bookhunter-results.json` — complete machine-readable data and source errors
-- `reports/bookhunter-results.csv` — spreadsheet-friendly results
-- `reports/bookhunter-results.md` — readable Markdown report
+~~~bash
+cargo run --release -- --book-id 8 --sources open-library,oapen,crossref --retry-failed
+~~~
 
 ## Run from a phone with GitHub Actions
 
-No Rust installation or Termux is required on the phone.
+No Rust installation or Termux is required.
 
 1. Open this repository on GitHub.
-2. Open the **Actions** tab.
-3. Select **BookHunter search** and tap **Run workflow**.
-4. Leave Book ID blank to search all 164 books, or enter a number from 1 to 164.
-5. Wait for the workflow to finish, open its run, and download the **bookhunter-report** artifact.
-6. Open the HTML report on your phone, or use the CSV/JSON files elsewhere.
+2. Open the Actions tab.
+3. Select BookHunter search and tap Run workflow.
+4. Leave the source field as all, keep retries enabled, and use concurrency 4 or 8.
+5. When the run finishes, open its GitHub Release to download bookhunter-books.zip. The HTML report is also attached.
 
-A monthly scheduled full search is configured for 03:17 UTC on the first day of each month. Search providers may change their APIs or return incomplete data, so reports include errors instead of silently treating failed sources as empty results. BookHunter also serialises requests to rate-limited catalogues: it waits about 1.1 seconds between Open Library and Wikisource requests, and about 3.1 seconds between Library of Congress requests. A full run can therefore take several minutes; this pacing is deliberate.
+The workflow runs a full scan of README2.md; it does not accept a single-book filter. It also uploads a separate report artifact for troubleshooting. A monthly scheduled full scan is configured.
+
+## Reports
+
+- reports/bookhunter-results.html — phone-friendly results page
+- reports/bookhunter-results.json — complete machine-readable results and source errors
+- reports/bookhunter-results.csv — spreadsheet-friendly matches
+- reports/bookhunter-results.md — readable report
+- downloads/bookhunter-books.zip — one ZIP containing eligible downloads and a licence manifest
+- downloads/download-manifest.csv / .json — file-by-file source and licence details
 
 ## Development checks
 
-The CI workflow runs formatting checks, Clippy, tests and a release build on pushes and pull requests. One test reads README2.md and verifies that the numbered list contains exactly 164 continuously numbered books.
+CI runs rustfmt, Clippy, Rust tests, a release build, a one-book API smoke search, and Python tests for the download/redistribution filters.
