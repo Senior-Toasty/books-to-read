@@ -1023,8 +1023,6 @@ async fn search_doab(client: &Client, book: &Book, retry: bool) -> Result<Vec<Hi
 }
 
 async fn search_zenodo(client: &Client, book: &Book, retry: bool) -> Result<Vec<Hit>> {
-    let primary_author = book.author.split('&').next().unwrap_or(&book.author)
-        .split(" and ").next().unwrap_or(&book.author).trim();
     let query = format!("metadata.title:\"{}\"", book.title.replace('"', " "));
     let url = format!(
         "https://zenodo.org/api/records?q={}&size=10",
