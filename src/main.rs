@@ -1013,7 +1013,7 @@ async fn search_doab(client: &Client, book: &Book, retry: bool) -> Result<Vec<Hi
         let notes = if license.is_empty() {
             format!("DOAB record for an open-access book. Confirm the book's own licence and download page: {landing}")
         } else {
-            format!("DOAB metadata says the item licence is: {license}. Confirm the exact licence and edition on the source page: {landing}")
+            format!("Licence: {license}. Item page: {landing}. Confirm the exact licence and edition before redistribution.")
         };
         add_hit(&mut hits, book, Source::Doab, HitCandidate {
             title, authors, year, url, access: access.to_string(), notes,
