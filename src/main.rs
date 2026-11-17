@@ -59,6 +59,16 @@ struct Hit {
     notes: String,
 }
 
+#[derive(Debug, Clone)]
+struct HitCandidate {
+    title: String,
+    authors: String,
+    year: String,
+    url: String,
+    access: String,
+    notes: String,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct SearchError {
     book_id: u16,
@@ -126,17 +136,6 @@ impl Source {
         }
     }
 
-    fn all() -> Vec<Self> {
-        vec![
-            Self::GoogleBooks,
-            Self::OpenLibrary,
-            Self::InternetArchive,
-            Self::Gutenberg,
-            Self::Loc,
-            Self::Wikisource,
-            Self::OpenAlex,
-        ]
-    }
 }
 
 fn parse_books(markdown: &str) -> Vec<Book> {
@@ -213,9 +212,7 @@ fn match_confidence(book: &Book, candidate_title: &str, candidate_authors: &str)
         return None;
     }
 
-    let score = if candidate_authors.trim().is_empty() {
-        title_score
-    } else if book.author.eq_ignore_ascii_case("unknown") {
+    let score = if candidate_authors.trim().is_empty() || book.author.eq_ignore_ascii_case("unknown") {
         title_score
     } else {
         let author_score = overlap_score(&book.author, candidate_authors);
@@ -243,24 +240,16 @@ fn object_string(value: &Value, key: &str) -> String {
     value.get(key).map(value_string).unwrap_or_default()
 }
 
-fn add_hit(
-    hits: &mut Vec<Hit>,
-    book: &Book,
-    source: Source,
-    title: String,
-    authors: String,
-    year: String,
-    url: String,
-    access: String,
-    notes: String,
-) {
-    let Some(confidence) = match_confidence(book, &title, &authors) else {
+fn add_hit(hits: &mut Vec<Hit>, book: &Book, source: Source, candidate: HitCandidate) {
+    let Some(confidence) = match_confidence(book, &candidate.title, &candidate.authors) else {
         return;
     };
-    if url.trim().is_empty() {
+    if candidate.url.trim().is_empty() {
         return;
     }
-    if hits.iter().any(|hit| hit.book_id == book.id && hit.source == source.name() && hit.url == url) {
+    if hits.iter().any(|hit| {
+        hit.book_id == book.id && hit.source == source.name() && hit.url == candidate.url
+    }) {
         return;
     }
     hits.push(Hit {
@@ -268,13 +257,13 @@ fn add_hit(
         book_title: book.title.clone(),
         book_author: book.author.clone(),
         source: source.name().to_string(),
-        found_title: title,
-        found_authors: authors,
-        year,
-        url,
-        access,
+        found_title: candidate.title,
+        found_authors: candidate.authors,
+        year: candidate.year,
+        url: candidate.url,
+        access: candidate.access,
         confidence,
-        notes,
+        notes: candidate.notes,
     });
 }
 
@@ -350,7 +339,19 @@ async fn search_google_books(client: &Client, book: &Book, retry: bool) -> Resul
                 _ if pdf_available || epub_available => ("Free format reported", "Google Books reports an available PDF or EPUB format; confirm access on the edition page."),
                 _ => ("Catalogue / access not verified", "A catalogue record is not proof of free full-text access."),
             };
-            add_hit(&mut hits, book, Source::GoogleBooks, title, authors, year, link, access.to_string(), notes.to_string());
+            add_hit(
+                mut hits,
+                book,
+                Source::GoogleBooks,
+                HitCandidate {
+                    title: title,
+                    authors: authors,
+                    year: year,
+                    url: link,
+                    access: access.to_string(),
+                    notes: notes.to_string(),
+                },
+            );
         }
     }
     Ok(hits)
@@ -394,7 +395,19 @@ async fn search_open_library(client: &Client, book: &Book, retry: bool) -> Resul
                 "printdisabled" => ("Accessible lending", "Access may be restricted to eligible print-disabled readers."),
                 _ => ("Catalogue / no ebook access shown", "The record does not currently establish free full-text access."),
             };
-            add_hit(&mut hits, book, Source::OpenLibrary, title, authors, year, url, access.to_string(), notes.to_string());
+            add_hit(
+                mut hits,
+                book,
+                Source::OpenLibrary,
+                HitCandidate {
+                    title: title,
+                    authors: authors,
+                    year: year,
+                    url: url,
+                    access: access.to_string(),
+                    notes: notes.to_string(),
+                },
+            );
         }
     }
     Ok(hits)
@@ -425,7 +438,19 @@ async fn search_internet_archive(client: &Client, book: &Book, retry: bool) -> R
                 ("Access not verified", "The item exists in the catalogue, but this record alone does not prove unrestricted full-text access.")
             };
             let note = if license.is_empty() { notes.to_string() } else { format!("{notes} Licence: {license}") };
-            add_hit(&mut hits, book, Source::InternetArchive, title, authors, year, format!("https://archive.org/details/{identifier}"), access.to_string(), note);
+            add_hit(
+                mut hits,
+                book,
+                Source::InternetArchive,
+                HitCandidate {
+                    title: title,
+                    authors: authors,
+                    year: year,
+                    url: format!("https://archive.org/details/{identifier}"),
+                    access: access.to_string(),
+                    notes: note,
+                },
+            );
         }
     }
     Ok(hits)
@@ -451,9 +476,17 @@ async fn search_gutenberg(client: &Client, book: &Book, retry: bool) -> Result<V
                 .unwrap_or_else(|| format!("https://www.gutenberg.org/ebooks/{id}"));
             let year = String::new();
             add_hit(
-                &mut hits, book, Source::Gutenberg, title, authors, year, url,
-                "Public-domain full text (Project Gutenberg)".to_string(),
-                "Project Gutenberg distributes its catalogue under its stated terms. Public-domain status can differ by country; check local copyright law, especially outside the United States.".to_string(),
+                &mut hits,
+                book,
+                Source::Gutenberg,
+                HitCandidate {
+                    title: title,
+                    authors: authors,
+                    year: year,
+                    url: url,
+                    access: "Public-domain full text (Project Gutenberg)".to_string(),
+                    notes: "Project Gutenberg distributes its catalogue under its stated terms. Public-domain status can differ by country; check local copyright law, especially outside the United States.".to_string(),
+                },
             );
         }
     }
@@ -480,8 +513,19 @@ async fn search_loc(client: &Client, book: &Book, retry: bool) -> Result<Vec<Hit
             } else {
                 "Catalogue / digital status unclear"
             };
-            add_hit(&mut hits, book, Source::Loc, title, authors, year, url, access.to_string(),
-                "Library of Congress catalogue result. Open the item to confirm whether a complete, downloadable text is available.".to_string());
+            add_hit(
+                mut hits,
+                book,
+                Source::Loc,
+                HitCandidate {
+                    title: title,
+                    authors: authors,
+                    year: year,
+                    url: url,
+                    access: access.to_string(),
+                    notes: "Library of Congress catalogue result. Open the item to confirm whether a complete, downloadable text is available.".to_string(),
+                },
+            );
         }
     }
     Ok(hits)
@@ -500,10 +544,17 @@ async fn search_wikisource(client: &Client, book: &Book, retry: bool) -> Result<
             let title = object_string(item, "title");
             let page = urlencoding::encode(&title).replace("%2F", "/");
             add_hit(
-                &mut hits, book, Source::Wikisource, title, String::new(), String::new(),
-                format!("https://en.wikisource.org/wiki/{page}"),
-                "Free text candidate".to_string(),
-                "Wikisource hosts public-domain and freely licensed source texts. Confirm that the page is the complete book, not a chapter, index or discussion page.".to_string(),
+                &mut hits,
+                book,
+                Source::Wikisource,
+                HitCandidate {
+                    title: title,
+                    authors: String::new(),
+                    year: String::new(),
+                    url: format!("https://en.wikisource.org/wiki/{page}"),
+                    access: "Free text candidate".to_string(),
+                    notes: "Wikisource hosts public-domain and freely licensed source texts. Confirm that the page is the complete book, not a chapter, index or discussion page.".to_string(),
+                },
             );
         }
     }
@@ -533,9 +584,17 @@ async fn search_openalex(client: &Client, book: &Book, retry: bool) -> Result<Ve
                 .or_else(|| item.pointer("/primary_location/landing_page_url").map(value_string).filter(|s| !s.is_empty()))
                 .unwrap_or_else(|| object_string(item, "id"));
             add_hit(
-                &mut hits, book, Source::OpenAlex, title, authors, year, url,
-                "Open-access scholarly document".to_string(),
-                "OpenAlex marks this work as open access. It may be a paper, chapter or related scholarly work, not the requested book itself.".to_string(),
+                &mut hits,
+                book,
+                Source::OpenAlex,
+                HitCandidate {
+                    title: title,
+                    authors: authors,
+                    year: year,
+                    url: url,
+                    access: "Open-access scholarly document".to_string(),
+                    notes: "OpenAlex marks this work as open access. It may be a paper, chapter or related scholarly work, not the requested book itself.".to_string(),
+                },
             );
         }
     }
@@ -738,7 +797,7 @@ async fn main() -> Result<()> {
                 message: error.to_string(),
             }),
         }
-        if completed % 10 == 0 || completed == total_jobs {
+        if completed.is_multiple_of(10) || completed == total_jobs {
             println!("Progress: {completed}/{total_jobs} provider requests · {} matches · {} errors",
                 hits.len(), errors.len());
             let checkpoint = SearchRun {
