@@ -67,7 +67,7 @@ def candidate_for_hit(hit: dict[str, Any]) -> dict[str, Any] | None:
     if source == "Project Gutenberg (Gutendex)":
         if host not in GUTENBERG_HOSTS:
             return None
-        match = re.search(r"Latest author death year:\s*(\d{4})", notes)
+        match = re.search(r"Latest author death year:\s*(\d{1,4})", notes)
         if not match or int(match.group(1)) > 1975:
             return None
         return {
