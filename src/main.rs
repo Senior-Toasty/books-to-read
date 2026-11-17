@@ -701,7 +701,7 @@ async fn write_reports(output: &Path, run: &SearchRun, books: &[Book]) -> Result
     let mut by_book: BTreeMap<u16, Vec<&Hit>> = BTreeMap::new();
     for hit in &run.hits { by_book.entry(hit.book_id).or_default().push(hit); }
     for book in books {
-        markdown.push_str(&format!("## {}. {} — {}\n\n", book.id, book.title, book.author));
+        markdown.push_str(&format!("## {}. {} — {}\n\n*{}*\n\n", book.id, book.title, book.author, book.category));
         if let Some(items) = by_book.get(&book.id) {
             for hit in items {
                 markdown.push_str(&format!("- **{}:** [{}]({}) · {} · confidence {:.0}%\n  - {}\n",
@@ -797,12 +797,12 @@ async fn main() -> Result<()> {
                 carried_forward_hits = previous.hits.into_iter()
                     .filter(|hit| selected_ids.contains(&hit.book_id))
                     .collect();
-                carried_forward_errors = previous.errors.into_iter()
-                    .filter(|error| selected_ids.contains(&error.book_id))
-                    .collect();
                 for hit in &carried_forward_hits {
                     previous_hit_books.insert(hit.book_id);
                 }
+                carried_forward_errors = previous.errors.into_iter()
+                    .filter(|error| previous_hit_books.contains(&error.book_id))
+                    .collect();
             }
         }
         books.retain(|book| !previous_hit_books.contains(&book.id));
