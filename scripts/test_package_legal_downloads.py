@@ -67,6 +67,34 @@ class CandidateRulesTest(unittest.TestCase):
     def test_recognises_gutenberg_text_extension(self):
         self.assertEqual(extension_for_url("https://www.gutenberg.org/files/132/132-0.txt.utf-8"), ".txt")
 
+    def test_recognises_gutenberg_epub_variants(self):
+        self.assertEqual(extension_for_url("https://www.gutenberg.org/ebooks/132.epub.images"), ".epub")
+        self.assertEqual(extension_for_url("https://www.gutenberg.org/ebooks/132.epub3.noimages"), ".epub")
+
+    def test_accepts_doab_direct_cc_by_sa_file(self):
+        result = candidate_for_hit({
+            "book_id": 21,
+            "book_title": "Open Book",
+            "book_author": "Author",
+            "source": "Directory of Open Access Books (DOAB)",
+            "url": "https://directory.doabooks.org/bitstream/handle/20.500.12854/123/book.epub",
+            "notes": "DOAB metadata says the item licence is: https://creativecommons.org/licenses/by-sa/4.0/. Item page: https://directory.doabooks.org/handle/123",
+        })
+        self.assertIsNotNone(result)
+        self.assertEqual(result["extension"], ".epub")
+
+    def test_rejects_doab_files_from_external_unknown_hosts(self):
+        hit = {
+            "book_id": 22,
+            "book_title": "Open Book",
+            "book_author": "Author",
+            "source": "Directory of Open Access Books (DOAB)",
+            "url": "https://untrusted.example/book.pdf",
+            "notes": "DOAB metadata says the item licence is: https://creativecommons.org/licenses/by/4.0/. Item page: https://directory.doabooks.org/handle/123",
+        }
+        self.assertIsNone(candidate_for_hit(hit))
+
+
 
 if __name__ == "__main__":
     unittest.main()
