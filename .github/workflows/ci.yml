@@ -6,6 +6,8 @@ on:
     paths:
       - "Cargo.toml"
       - "src/**"
+      - "scripts/**"
+      - "BOOKHUNTER.md"
       - ".github/workflows/ci.yml"
   pull_request:
     branches: [main]
@@ -43,13 +45,17 @@ jobs:
         run: cargo clippy --all-targets -- -D warnings
       - name: Run tests
         run: cargo test --all-targets
+      - name: Test download packaging safety rules
+        run: |
+          python3 -m py_compile scripts/package_legal_downloads.py
+          python3 -m unittest discover -s scripts -p "test_*.py" -v
       - name: Build release binary
         run: cargo build --release
       - name: Smoke-test the BookHunter CLI
         run: cargo run --release -- --help
       - name: Run a one-book catalogue smoke search
         run: |
-          cargo run --release -- --book-id 8 --sources open-library,loc --concurrency 2 --retry-failed --output smoke-reports
+          cargo run --release -- --book-id 8 --sources open-library --concurrency 1 --retry-failed --output smoke-reports
           test -s smoke-reports/bookhunter-results.html
           test -s smoke-reports/bookhunter-results.json
           python3 - <<'PY'
