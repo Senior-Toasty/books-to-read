@@ -140,80 +140,81 @@ A 164-book reading library organised by subject. The reading order starts with *
 102. Man's Search for Meaning — Viktor Frankl
 103. The Defining Decade — Meg Jay
 104. The Compound Effect — Darren Hardy
+106. The 7 Habits of Highly Effective People — Stephen Covey
 
 ## 7. Philosophy, ethics and critical thinking
 
-105. The Art of Thinking Clearly — Rolf Dobelli
-106. Letters from a Stoic — Seneca
-107. Discourses and Selected Writings — Epictetus
-108. Think Again — Adam Grant
-109. Thus Spoke Zarathustra — Friedrich Nietzsche
-110. Meditations — Marcus Aurelius
-111. The Republic — Plato
-112. Beyond Good and Evil — Friedrich Nietzsche
-113. The Myth of Sisyphus — Albert Camus
-114. Sophie's World — Jostein Gaarder
-115. The Idiot — Fyodor Dostoevsky
+106. The Art of Thinking Clearly — Rolf Dobelli
+107. Letters from a Stoic — Seneca
+108. Discourses and Selected Writings — Epictetus
+109. Think Again — Adam Grant
+110. Thus Spoke Zarathustra — Friedrich Nietzsche
+111. Meditations — Marcus Aurelius
+112. The Republic — Plato
+113. Beyond Good and Evil — Friedrich Nietzsche
+114. The Myth of Sisyphus — Albert Camus
+115. Sophie's World — Jostein Gaarder
+116. The Idiot — Fyodor Dostoevsky
 
 ## 8. Learning, productivity and intellectual development
 
-116. Unlimited — Jim Kwik
-117. Deep Work — Cal Newport
-118. Make It Stick — Peter C. Brown, Henry Roediger & Mark McDaniel
-119. A Mind for Numbers — Barbara Oakley
-120. Ultralearning — Scott Young
-121. How to Read a Book — Mortimer Adler & Charles Van Doren
-122. Moonwalking with Einstein — Joshua Foer
-123. Digital Minimalism — Cal Newport
-124. How to Take Smart Notes — Sönke Ahrens
-125. On Writing Well — William Zinsser
-126. The Elements of Style — Strunk & White
+117. Unlimited — Jim Kwik
+118. Deep Work — Cal Newport
+119. Make It Stick — Peter C. Brown, Henry Roediger & Mark McDaniel
+120. A Mind for Numbers — Barbara Oakley
+121. Ultralearning — Scott Young
+122. How to Read a Book — Mortimer Adler & Charles Van Doren
+123. Moonwalking with Einstein — Joshua Foer
+124. Digital Minimalism — Cal Newport
+125. How to Take Smart Notes — Sönke Ahrens
+126. On Writing Well — William Zinsser
+127. The Elements of Style — Strunk & White
 
 ## 9. Science, biology and technology
 
-127. A Short History of Nearly Everything — Bill Bryson
-128. Cosmos — Carl Sagan
-129. The Gene — Siddhartha Mukherjee
-130. The Emperor of All Maladies — Siddhartha Mukherjee
-131. Astrophysics for People in a Hurry — Neil deGrasse Tyson
-132. The Selfish Gene — Richard Dawkins
-133. Silent Spring — Rachel Carson
-134. The Immortal Life of Henrietta Lacks — Rebecca Skloot
-135. How to Lie with Statistics — Darrell Huff
-136. Fermat's Enigma — Simon Singh
-137. Born to Run — Christopher McDougall
-138. 5/3/1 — Jim Wendler
+128. A Short History of Nearly Everything — Bill Bryson
+129. Cosmos — Carl Sagan
+130. The Gene — Siddhartha Mukherjee
+131. The Emperor of All Maladies — Siddhartha Mukherjee
+132. Astrophysics for People in a Hurry — Neil deGrasse Tyson
+133. The Selfish Gene — Richard Dawkins
+134. Silent Spring — Rachel Carson
+135. The Immortal Life of Henrietta Lacks — Rebecca Skloot
+136. How to Lie with Statistics — Darrell Huff
+137. Fermat's Enigma — Simon Singh
+138. Born to Run — Christopher McDougall
+139. 5/3/1 — Jim Wendler
 
 ## 10. History, politics and civilisation
 
-139. Sapiens — Yuval Noah Harari
-140. Guns, Germs, and Steel — Jared Diamond
-141. A People's History of the United States — Howard Zinn
-142. The Silk Roads — Peter Frankopan
-143. Salt — Mark Kurlansky
-144. Cod — Mark Kurlansky
-145. The Wright Brothers — David McCullough
-146. SPQR — Mary Beard
-147. The Diary of a Young Girl — Anne Frank
-148. Night — Elie Wiesel
-149. All Quiet on the Western Front — Erich Maria Remarque
+140. Sapiens — Yuval Noah Harari
+141. Guns, Germs, and Steel — Jared Diamond
+142. A People's History of the United States — Howard Zinn
+143. The Silk Roads — Peter Frankopan
+144. Salt — Mark Kurlansky
+145. Cod — Mark Kurlansky
+146. The Wright Brothers — David McCullough
+147. SPQR — Mary Beard
+148. The Diary of a Young Girl — Anne Frank
+149. Night — Elie Wiesel
+150. All Quiet on the Western Front — Erich Maria Remarque
 
 ## 11. Fiction, novels and literature
 
-150. 1984 — George Orwell
-151. Animal Farm — George Orwell
-152. To Kill a Mockingbird — Harper Lee
-153. The Catcher in the Rye — J.D. Salinger
-154. Brave New World — Aldous Huxley
-155. Crime and Punishment — Fyodor Dostoevsky
-156. Fahrenheit 451 — Ray Bradbury
-157. Lord of the Flies — William Golding
-158. The Great Gatsby — F. Scott Fitzgerald
-159. Frankenstein — Mary Shelley
-160. The Hobbit — J.R.R. Tolkien
-161. One Hundred Years of Solitude — Gabriel García Márquez
-162. Things Fall Apart — Chinua Achebe
-163. The Kite Runner — Khaled Hosseini
+151. 1984 — George Orwell
+152. Animal Farm — George Orwell
+153. To Kill a Mockingbird — Harper Lee
+154. The Catcher in the Rye — J.D. Salinger
+155. Brave New World — Aldous Huxley
+156. Crime and Punishment — Fyodor Dostoevsky
+157. Fahrenheit 451 — Ray Bradbury
+158. Lord of the Flies — William Golding
+159. The Great Gatsby — F. Scott Fitzgerald
+160. Frankenstein — Mary Shelley
+161. The Hobbit — J.R.R. Tolkien
+162. One Hundred Years of Solitude — Gabriel García Márquez
+163. Things Fall Apart — Chinua Achebe
+164. The Kite Runner — Khaled Hosseini
 
 ## 12. Relationships and emotional maturity
 
