@@ -74,7 +74,7 @@ No Rust installation or Termux is required on the phone.
 5. Wait for the workflow to finish, open its run, and download the **bookhunter-report** artifact.
 6. Open the HTML report on your phone, or use the CSV/JSON files elsewhere.
 
-A monthly scheduled full search is configured for 03:17 UTC on the first day of each month. Search providers may change their APIs, impose rate limits or return incomplete data, so reports include errors instead of silently treating failed sources as empty results.
+A monthly scheduled full search is configured for 03:17 UTC on the first day of each month. Search providers may change their APIs or return incomplete data, so reports include errors instead of silently treating failed sources as empty results. BookHunter also serialises requests to rate-limited catalogues: it waits about 1.1 seconds between Open Library and Wikisource requests, and about 3.1 seconds between Library of Congress requests. A full run can therefore take several minutes; this pacing is deliberate.
 
 ## Development checks
 
