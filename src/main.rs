@@ -228,25 +228,47 @@ fn overlap_score(left: &str, right: &str) -> f32 {
 }
 
 fn match_confidence(book: &Book, candidate_title: &str, candidate_authors: &str) -> Option<f32> {
+    let book_tokens = token_set(&book.title);
+    let candidate_tokens = token_set(candidate_title);
     let title_score = overlap_score(&book.title, candidate_title);
-    let title_tokens = token_set(&book.title).len();
+    let title_tokens = book_tokens.len();
 
     // Short titles such as "Flow" or "Quiet" need a near-exact title match.
     if title_tokens <= 2 && title_score < 0.82 {
         return None;
     }
-    if title_score < 0.45 {
+
+    let title_coverage = if book_tokens.is_empty() {
+        0.0
+    } else {
+        book_tokens.intersection(&candidate_tokens).count() as f32 / book_tokens.len() as f32
+    };
+    let has_author = !candidate_authors.trim().is_empty()
+        && !book.author.eq_ignore_ascii_case("unknown");
+    let author_score = if has_author {
+        overlap_score(&book.author, candidate_authors)
+    } else {
+        0.0
+    };
+
+    // Require a close title, or the complete original title plus a strong author match.
+    // This rejects near-misses like "The Lost Art of War" for "The Art of War".
+    let close_title = title_score >= 0.72;
+    let exact_title_with_author = has_author
+        && title_score >= 0.45
+        && title_coverage >= 0.95
+        && author_score >= 0.75;
+    if !close_title && !exact_title_with_author {
         return None;
     }
 
-    let score = if candidate_authors.trim().is_empty() || book.author.eq_ignore_ascii_case("unknown") {
-        title_score
-    } else {
-        let author_score = overlap_score(&book.author, candidate_authors);
+    let score = if has_author {
         (title_score * 0.72) + (author_score * 0.28)
+    } else {
+        title_score
     };
 
-    if score < 0.48 {
+    if score < 0.60 {
         None
     } else {
         Some(score.clamp(0.0, 1.0))
@@ -959,5 +981,18 @@ mod tests {
         let book = Book { id: 1, title: "Flow".into(), author: "Mihaly Csikszentmihalyi".into(), category: "Test".into() };
         assert!(match_confidence(&book, "Flow", "").is_some());
         assert!(match_confidence(&book, "Flow State", "").is_none());
+    }
+
+    #[test]
+    fn rejects_near_miss_titles_even_when_tokens_overlap() {
+        let book = Book {
+            id: 1,
+            title: "The Art of War".into(),
+            author: "Sun Tzu".into(),
+            category: "Test".into(),
+        };
+        assert!(match_confidence(&book, "The Lost Art of War", "Sun Tzu II").is_none());
+        assert!(match_confidence(&book, "Women and the Art of War", "Catherine Huang").is_none());
+        assert!(match_confidence(&book, "The Art of War: A Classic Edition", "Sun Tzu").is_some());
     }
 }
