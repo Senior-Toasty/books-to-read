@@ -785,16 +785,16 @@ fn collect_oapen_bitstreams(value: &Value, output: &mut Vec<(String, String)>) {
     }
 }
 
-fn oapen_download_url(item: &Value) -> Option<String> {
+fn repository_download_url(item: &Value, base_url: &str) -> Option<String> {
     let mut files = Vec::new();
     collect_oapen_bitstreams(item.get("bitstreams").unwrap_or(item), &mut files);
     files.into_iter().find_map(|(name, link)| {
         let link = if link.starts_with("http://") || link.starts_with("https://") {
             link
         } else if link.starts_with('/') {
-            format!("https://library.oapen.org{link}")
+            format!("{base_url}{link}")
         } else {
-            format!("https://library.oapen.org/{link}")
+            format!("{base_url}/{link}")
         };
         let value = if name.is_empty() { &link } else { &name };
         let lower = value.to_lowercase();
@@ -837,7 +837,7 @@ async fn search_oapen(client: &Client, book: &Book, retry: bool) -> Result<Vec<H
         } else {
             format!("https://library.oapen.org/handle/{handle}")
         };
-        let direct = oapen_download_url(item);
+        let direct = repository_download_url(item, "https://library.oapen.org");
         let url = direct.unwrap_or_else(|| landing.clone());
         let access = if license.to_lowercase().contains("creativecommons.org") || license.to_lowercase().contains("publicdomain") {
             "Open-access book (OAPEN; licence metadata listed)"
@@ -1003,7 +1003,7 @@ async fn search_doab(client: &Client, book: &Book, retry: bool) -> Result<Vec<Hi
         } else {
             format!("https://directory.doabooks.org/handle/{handle}")
         };
-        let direct = oapen_download_url(item);
+        let direct = repository_download_url(item, "https://directory.doabooks.org");
         let url = direct.clone().unwrap_or_else(|| landing.clone());
         let access = if !license.is_empty() {
             "DOAB open-access book record (check specific licence)"
@@ -1426,6 +1426,13 @@ async fn main() -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn expanded_provider_ids_are_supported() {
+        for id in ["google-books", "open-library", "internet-archive", "gutenberg", "loc", "wikisource", "openalex", "oapen", "openaire", "crossref", "wikidata", "doab", "zenodo"] {
+            assert_eq!(Source::parse(id).unwrap().id(), id);
+        }
+    }
 
     #[test]
     fn repository_list_contains_exactly_164_numbered_books() {
