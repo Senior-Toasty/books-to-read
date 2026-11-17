@@ -78,7 +78,7 @@ class CandidateRulesTest(unittest.TestCase):
             "book_author": "Author",
             "source": "Directory of Open Access Books (DOAB)",
             "url": "https://directory.doabooks.org/bitstream/handle/20.500.12854/123/book.epub",
-            "notes": "DOAB metadata says the item licence is: https://creativecommons.org/licenses/by-sa/4.0/. Item page: https://directory.doabooks.org/handle/123",
+            "notes": "Licence: https://creativecommons.org/licenses/by-sa/4.0/. Item page: https://directory.doabooks.org/handle/123",
         })
         self.assertIsNotNone(result)
         self.assertEqual(result["extension"], ".epub")
