@@ -7,7 +7,9 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::{BTreeMap, HashSet};
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 use std::time::Duration;
+use tokio::sync::Semaphore;
 use tokio::time::sleep;
 
 #[derive(Parser, Debug)]
@@ -85,6 +87,23 @@ struct SearchRun {
     searched_books: usize,
     hits: Vec<Hit>,
     errors: Vec<SearchError>,
+}
+
+#[derive(Clone)]
+struct RequestGates {
+    open_library: Arc<Semaphore>,
+    loc: Arc<Semaphore>,
+    wikisource: Arc<Semaphore>,
+}
+
+impl RequestGates {
+    fn new() -> Self {
+        Self {
+            open_library: Arc::new(Semaphore::new(1)),
+            loc: Arc::new(Semaphore::new(1)),
+            wikisource: Arc::new(Semaphore::new(1)),
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -534,7 +553,7 @@ async fn search_loc(client: &Client, book: &Book, retry: bool) -> Result<Vec<Hit
 async fn search_wikisource(client: &Client, book: &Book, retry: bool) -> Result<Vec<Hit>> {
     let query = format!("\"{}\" ", book.title);
     let url = format!(
-        "https://en.wikisource.org/w/api.php?action=query&list=search&srsearch={}&srnamespace=0&srlimit=10&format=json&origin=*",
+        "https://en.wikisource.org/w/api.php?action=query&list=search&srsearch={}&srnamespace=0&srlimit=10&format=json&origin=*&maxlag=1",
         urlencoding::encode(&query)
     );
     let data = get_json(client, &url, retry).await?;
@@ -601,7 +620,31 @@ async fn search_openalex(client: &Client, book: &Book, retry: bool) -> Result<Ve
     Ok(hits)
 }
 
-async fn search_source(client: &Client, book: &Book, source: Source, retry: bool) -> Result<Vec<Hit>> {
+async fn search_source(
+    client: &Client,
+    book: &Book,
+    source: Source,
+    retry: bool,
+    gates: &RequestGates,
+) -> Result<Vec<Hit>> {
+    let _rate_guard = match source {
+        Source::OpenLibrary => {
+            let permit = gates.open_library.clone().acquire_owned().await?;
+            sleep(Duration::from_millis(1100)).await;
+            Some(permit)
+        }
+        Source::Loc => {
+            let permit = gates.loc.clone().acquire_owned().await?;
+            sleep(Duration::from_millis(3100)).await;
+            Some(permit)
+        }
+        Source::Wikisource => {
+            let permit = gates.wikisource.clone().acquire_owned().await?;
+            sleep(Duration::from_millis(1100)).await;
+            Some(permit)
+        }
+        _ => None,
+    };
     match source {
         Source::GoogleBooks => search_google_books(client, book, retry).await,
         Source::OpenLibrary => search_open_library(client, book, retry).await,
@@ -744,11 +787,22 @@ async fn main() -> Result<()> {
     if sources.is_empty() { bail!("No sources selected."); }
 
     let mut previous_hit_books = HashSet::new();
+    let mut carried_forward_hits = Vec::new();
+    let mut carried_forward_errors = Vec::new();
     let prior_json = args.output.join("bookhunter-results.json");
     if args.retry_empty && prior_json.exists() {
         if let Ok(content) = tokio::fs::read_to_string(&prior_json).await {
             if let Ok(previous) = serde_json::from_str::<SearchRun>(&content) {
-                for hit in previous.hits { previous_hit_books.insert(hit.book_id); }
+                let selected_ids = books.iter().map(|book| book.id).collect::<HashSet<_>>();
+                carried_forward_hits = previous.hits.into_iter()
+                    .filter(|hit| selected_ids.contains(&hit.book_id))
+                    .collect();
+                carried_forward_errors = previous.errors.into_iter()
+                    .filter(|error| selected_ids.contains(&error.book_id))
+                    .collect();
+                for hit in &carried_forward_hits {
+                    previous_hit_books.insert(hit.book_id);
+                }
             }
         }
         books.retain(|book| !previous_hit_books.contains(&book.id));
@@ -765,7 +819,7 @@ async fn main() -> Result<()> {
         .build()?;
 
     let total_list_books = parse_books(&markdown).len();
-    let searched_books = books.len();
+    let searched_books = books.len() + previous_hit_books.len();
     let jobs: Vec<(Book, Source)> = books.iter().flat_map(|book| {
         sources.iter().map(move |source| (book.clone(), *source))
     }).collect();
@@ -773,14 +827,16 @@ async fn main() -> Result<()> {
     println!("BookHunter: {} books × {} API sources = {} requests (max concurrency {}).",
         searched_books, sources.len(), total_jobs, args.concurrency);
 
+    let gates = RequestGates::new();
     let mut hits = Vec::new();
     let mut errors = Vec::new();
     let mut completed = 0usize;
     let mut results = stream::iter(jobs)
         .map(|(book, source)| {
             let client = client.clone();
+            let gates = gates.clone();
             async move {
-                let result = search_source(&client, &book, source, args.retry_failed).await;
+                let result = search_source(&client, &book, source, args.retry_failed, &gates).await;
                 (book, source, result)
             }
         })
@@ -805,14 +861,16 @@ async fn main() -> Result<()> {
                 list_file: args.list.display().to_string(),
                 total_books: total_list_books,
                 searched_books,
-                hits: hits.clone(),
-                errors: errors.clone(),
+                hits: carried_forward_hits.iter().cloned().chain(hits.iter().cloned()).collect(),
+                errors: carried_forward_errors.iter().cloned().chain(errors.iter().cloned()).collect(),
             };
             tokio::fs::create_dir_all(&args.output).await?;
             tokio::fs::write(&prior_json, serde_json::to_vec_pretty(&checkpoint)?).await?;
         }
     }
 
+    hits.extend(carried_forward_hits);
+    errors.extend(carried_forward_errors);
     hits.sort_by(|a, b| a.book_id.cmp(&b.book_id).then_with(|| b.confidence.total_cmp(&a.confidence)).then_with(|| a.source.cmp(&b.source)));
     let run = SearchRun {
         generated_at: Utc::now(),
