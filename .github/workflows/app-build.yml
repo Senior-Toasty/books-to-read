@@ -44,20 +44,6 @@ jobs:
         working-directory: app
         run: flutter pub get
 
-      - name: Analyze Dart code
-        working-directory: app
-        run: flutter analyze --no-fatal-infos
-
-      - name: Run Flutter tests
-        working-directory: app
-        run: flutter test --reporter expanded
-
-      - name: Generate Android project files
-        run: |
-          flutter create --project-name bookhunter --org com.bookhunter --platforms android --no-pub /tmp/bookhunter-platform
-          mkdir -p app/android
-          cp -a /tmp/bookhunter-platform/android/. app/android/
-
       - name: Generate Readiculous launcher icons
         run: |
           python3 -m pip install --break-system-packages Pillow
@@ -74,6 +60,7 @@ jobs:
           with Image.open(source) as original:
               original.load()
               image = original.convert("RGB").resize((512, 512), Image.Resampling.LANCZOS)
+          image.save("app/assets/readiculous_icon.png", format="PNG", optimize=True)
 
           root = Path("app/android/app/src/main/res")
           for density, size in (("mdpi",48),("hdpi",72),("xhdpi",96),("xxhdpi",144),("xxxhdpi",192)):
@@ -95,6 +82,22 @@ jobs:
           (adaptive / "ic_launcher_round.xml").write_text(xml, encoding="utf-8")
           print("Generated launcher icons from the supplied Readiculous artwork.")
           PY
+
+
+      - name: Analyze Dart code
+        working-directory: app
+        run: flutter analyze --no-fatal-infos
+
+      - name: Run Flutter tests
+        working-directory: app
+        run: flutter test --reporter expanded
+
+      - name: Generate Android project files
+        run: |
+          flutter create --project-name bookhunter --org com.bookhunter --platforms android --no-pub /tmp/bookhunter-platform
+          mkdir -p app/android
+          cp -a /tmp/bookhunter-platform/android/. app/android/
+
 
       - name: Set Android app display name
         run: |
