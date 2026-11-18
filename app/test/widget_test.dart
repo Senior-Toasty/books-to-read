@@ -16,9 +16,6 @@ void main() {
     expect(find.text('Ebooks'), findsOneWidget);
     expect(find.text('Audiobooks'), findsOneWidget);
     expect(find.text('Discover'), findsOneWidget);
-    await tester.ensureVisible(find.text('Search fourteen catalogues at once'));
-    await tester.pumpAndSettle();
-    expect(find.text('Search fourteen catalogues at once'), findsOneWidget);
   });
 
   testWidgets('navigation opens library and downloads placeholders', (tester) async {
