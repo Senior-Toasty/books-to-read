@@ -44,6 +44,38 @@ jobs:
         working-directory: app
         run: flutter pub get
 
+      - name: Prepare bundled Readiculous logo
+        run: |
+          python3 -m pip install --break-system-packages Pillow
+          python3 - <<'PY'
+          from pathlib import Path
+          from PIL import Image, ImageFile
+          ImageFile.LOAD_TRUNCATED_IMAGES = True
+          source = Path("app/assets/readiculous_icon.jpg")
+          if not source.is_file():
+              raise SystemExit(f"Logo artwork missing: {source}")
+          with Image.open(source) as original:
+              original.load()
+              original.convert("RGB").save("app/assets/readiculous_icon.png", format="PNG", optimize=True)
+          print("Prepared bundled PNG logo from the supplied artwork.")
+          PY
+
+
+      - name: Analyze Dart code
+        working-directory: app
+        run: flutter analyze --no-fatal-infos
+
+      - name: Run Flutter tests
+        working-directory: app
+        run: flutter test --reporter expanded
+
+      - name: Generate Android project files
+        run: |
+          flutter create --project-name bookhunter --org com.bookhunter --platforms android --no-pub /tmp/bookhunter-platform
+          mkdir -p app/android
+          cp -a /tmp/bookhunter-platform/android/. app/android/
+
+
       - name: Generate Readiculous launcher icons
         run: |
           python3 -m pip install --break-system-packages Pillow
@@ -82,21 +114,6 @@ jobs:
           (adaptive / "ic_launcher_round.xml").write_text(xml, encoding="utf-8")
           print("Generated launcher icons from the supplied Readiculous artwork.")
           PY
-
-
-      - name: Analyze Dart code
-        working-directory: app
-        run: flutter analyze --no-fatal-infos
-
-      - name: Run Flutter tests
-        working-directory: app
-        run: flutter test --reporter expanded
-
-      - name: Generate Android project files
-        run: |
-          flutter create --project-name bookhunter --org com.bookhunter --platforms android --no-pub /tmp/bookhunter-platform
-          mkdir -p app/android
-          cp -a /tmp/bookhunter-platform/android/. app/android/
 
 
       - name: Set Android app display name
