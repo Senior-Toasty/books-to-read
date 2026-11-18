@@ -22,7 +22,7 @@ class _BookReaderPageState extends State<BookReaderPage> {
     if (_extension == 'pdf') {
       _pdfController = PdfControllerPinch(document: PdfDocument.openFile(widget.path));
     } else if (_extension == 'epub') {
-      _epubController = EpubController(document: EpubDocument.openFile(widget.path));
+      _epubController = EpubController(document: EpubDocument.openFile(File(widget.path)));
     }
   }
   @override
