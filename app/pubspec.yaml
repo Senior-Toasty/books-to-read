@@ -14,7 +14,6 @@ dependencies:
   shared_preferences: ^2.3.2
   path_provider: ^2.1.5
   open_filex: ^4.6.0
-  flutter_svg: ^2.0.10+1
   epub_view: ^3.3.0
   pdfx: ^2.11.0
 
@@ -30,4 +29,4 @@ dev_dependencies:
 flutter:
   uses-material-design: true
   assets:
-    - assets/readiculous_icon.svg
+    - assets/readiculous_icon.jpg
