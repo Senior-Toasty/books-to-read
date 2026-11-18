@@ -41,7 +41,6 @@ jobs:
     name: Rust core checks
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt, clippy
@@ -62,6 +61,20 @@ jobs:
         run: |
           flutter create --project-name bookhunter --org com.bookhunter --platforms android --no-pub /tmp/bookhunter-platforms
           cp -a /tmp/bookhunter-platforms/android app/android
+      - name: Grant Android network access
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path("app/android/app/src/main/AndroidManifest.xml")
+          manifest = path.read_text(encoding="utf-8")
+          permission = '<uses-permission android:name="android.permission.INTERNET"/>'
+          if permission not in manifest:
+              manifest = manifest.replace("<application", f"{permission}\\n    <application", 1)
+          path.write_text(manifest, encoding="utf-8")
+          if permission not in manifest:
+              raise SystemExit("INTERNET permission was not added to the release manifest")
+          print("Android INTERNET permission verified.")
+          PY
       - run: flutter pub get
         working-directory: app
       - run: flutter build apk --release
