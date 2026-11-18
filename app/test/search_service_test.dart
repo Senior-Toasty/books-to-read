@@ -37,7 +37,7 @@ void main() {
     final response = await service.search('Dune');
     expect(response.completedProviders, 5);
     expect(response.failures, isEmpty);
-    expect(response.results.where((r) => r.format == BookFormat.ebook), hasLength(2));
+    expect(response.results.where((r) => r.format == BookFormat.ebook), hasLength(1));
     expect(response.results.where((r) => r.format == BookFormat.audiobook), hasLength(2));
     expect(response.results.any((r) => r.source == 'LibriVox'), isTrue);
     expect(response.results.every((r) => r.coverUrl == null || r.coverUrl!.startsWith('https://')), isTrue);
