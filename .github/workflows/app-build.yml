@@ -84,12 +84,12 @@ jobs:
           cp -a /tmp/bookhunter-platforms/ios app/ios
       - run: flutter pub get
         working-directory: app
-      - run: flutter build ipa --release --no-codesign
+      - run: flutter build ios --release --no-codesign
         working-directory: app
-      - name: Package unsigned IPA from Xcode archive
+      - name: Package unsigned IPA from app bundle
         run: |
           mkdir -p app/build/ios/ipa/Payload
-          cp -R app/build/ios/archive/Runner.xcarchive/Products/Applications/Runner.app app/build/ios/ipa/Payload/
+          cp -R app/build/ios/iphoneos/Runner.app app/build/ios/ipa/Payload/
           cd app/build/ios/ipa
           zip -qr BookHunter-unsigned.ipa Payload
       - uses: actions/upload-artifact@v4
