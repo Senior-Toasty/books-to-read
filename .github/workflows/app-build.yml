@@ -2,7 +2,7 @@ name: BookHunter Android Test Build
 
 on:
   push:
-    branches: ["main", "stage1/flutter-rust-foundation"]
+    branches: ["main"]
     paths:
       - "app/**"
       - ".github/workflows/app-build.yml"
