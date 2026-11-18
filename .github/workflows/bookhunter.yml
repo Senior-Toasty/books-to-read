@@ -1,0 +1,120 @@
+name: BookHunter search
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "Cargo.toml"
+      - "src/**"
+      - "scripts/**"
+      - "README2.md"
+      - "BOOKHUNTER.md"
+      - ".github/workflows/bookhunter.yml"
+  workflow_dispatch:
+    inputs:
+      retry_failed:
+        description: "Retry temporary network errors and rate limits."
+        required: false
+        default: true
+        type: boolean
+      sources:
+        description: "Comma-separated API source IDs, or 'all'."
+        required: false
+        default: "all"
+        type: string
+      concurrency:
+        description: "Maximum simultaneous book jobs (1-32)."
+        required: false
+        default: 24
+        type: number
+  schedule:
+    - cron: "17 3 1 * *"
+
+permissions:
+  contents: write
+  actions: read
+
+concurrency:
+  group: bookhunter-search
+  cancel-in-progress: false
+
+jobs:
+  search:
+    name: Search all books, package legal downloads and publish release
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Install stable Rust
+        uses: dtolnay/rust-toolchain@stable
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+      - name: Cache Cargo
+        uses: Swatinem/rust-cache@v2
+      - name: Build BookHunter
+        run: cargo build --release
+      - name: Run full BookHunter search
+        env:
+          RETRY_FAILED: ${{ inputs.retry_failed || github.event_name != 'workflow_dispatch' }}
+          SOURCES: ${{ inputs.sources || 'all' }}
+          CONCURRENCY: ${{ inputs.concurrency || 24 }}
+        run: |
+          if ! [[ "$CONCURRENCY" =~ ^[0-9]+$ ]]; then CONCURRENCY=24; fi
+          if (( CONCURRENCY < 1 )); then CONCURRENCY=1; fi
+          if (( CONCURRENCY > 32 )); then CONCURRENCY=32; fi
+          args=(--output reports --concurrency "$CONCURRENCY")
+          if [ "$SOURCES" != "all" ]; then args+=(--sources "$SOURCES"); fi
+          if [ "$RETRY_FAILED" = "true" ]; then args+=(--retry-failed); fi
+          cargo run --release -- "${args[@]}"
+      - name: Verify that every reading-list entry was searched
+        run: |
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+
+          report = json.loads(Path("reports/bookhunter-results.json").read_text(encoding="utf-8"))
+          expected = int(report["total_books"])
+          searched = int(report["searched_books"])
+          ids = report.get("searched_book_ids", [])
+          if expected == 0 or searched != expected or len(ids) != expected or len(set(ids)) != expected:
+              raise SystemExit(
+                  f"Incomplete scan: searched {searched}/{expected}; "
+                  f"{len(set(ids))}/{expected} unique book IDs."
+              )
+          print(f"Full-list validation passed: {searched}/{expected} books searched.")
+          print(f"Catalogue hits: {len(report.get('hits', []))}; provider errors: {len(report.get('errors', []))}.")
+          PY
+      - name: Package eligible legal downloads into one ZIP
+        run: python3 scripts/package_legal_downloads.py --report reports/bookhunter-results.json --output downloads
+      - name: Upload search and download reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: bookhunter-complete-report
+          path: |
+            reports/
+            downloads/
+          if-no-files-found: warn
+          retention-days: 30
+      - name: Publish GitHub Release
+        if: success() && github.ref == 'refs/heads/main'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: bookhunter-${{ github.run_number }}-${{ github.run_attempt }}
+          name: BookHunter Results ${{ github.run_number }}.${{ github.run_attempt }}
+          body_path: downloads/RELEASE_NOTES.md
+          files: |
+            downloads/bookhunter-books.zip
+            downloads/download-manifest.csv
+            downloads/download-manifest.json
+            reports/bookhunter-results.html
+            reports/bookhunter-results.md
+            reports/bookhunter-results.json
+            reports/bookhunter-results.csv
+          fail_on_unmatched_files: true
+          make_latest: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
