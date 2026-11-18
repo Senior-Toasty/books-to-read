@@ -1,6 +1,7 @@
 // ignore_for_file: deprecated_member_use
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:bookhunter/changelog_page.dart';
 import 'package:bookhunter/search/book_result.dart';
 import 'package:bookhunter/search/search_service.dart';
 import 'package:bookhunter/library/library_store.dart';
@@ -100,44 +101,37 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _downloadsPage() {
     return AnimatedBuilder(
-      animation: DownloadStore.items,
+      animation: Listenable.merge([DownloadStore.items, DownloadStore.queue]),
       builder: (context, _) {
         final books = DownloadStore.items.value;
-        return ListView(
-          padding: const EdgeInsets.fromLTRB(16, 20, 16, 24),
-          children: [
-            const Text('Downloads', style: TextStyle(fontSize: 26, fontWeight: FontWeight.w800)),
-            const SizedBox(height: 5),
-            Text('${books.length} files stored on this device', style: const TextStyle(color: Colors.white60)),
-            const SizedBox(height: 14),
-            if (books.isEmpty)
-              const Padding(
-                padding: EdgeInsets.symmetric(vertical: 48),
-                child: Column(children: [
-                  Icon(Icons.download_for_offline_outlined, size: 52, color: Color(0xFFB5A9FF)),
-                  SizedBox(height: 14),
-                  Text('Nothing downloaded yet', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
-                  SizedBox(height: 6),
-                  Text('Eligible public-domain EPUB and PDF files will appear here.', textAlign: TextAlign.center, style: TextStyle(color: Colors.white60)),
-                ]),
-              ),
-            for (final book in books)
-              Card(
-                color: const Color(0xFF191E28),
-                child: ListTile(
-                  leading: const Icon(Icons.menu_book_rounded, color: Color(0xFFB5A9FF)),
-                  title: Text(book.title, maxLines: 2, overflow: TextOverflow.ellipsis),
-                  subtitle: Text('${book.source} · ${(book.bytes / 1048576).toStringAsFixed(1)} MB'),
-                  onTap: () => OpenFilex.open(book.path),
-                  trailing: IconButton(
-                    tooltip: 'Delete downloaded file',
-                    icon: const Icon(Icons.delete_outline),
-                    onPressed: () => DownloadStore.remove(book),
-                  ),
-                ),
-              ),
+        final tasks = DownloadStore.queue.value.where((t) => t.status != DownloadStatus.completed).toList();
+        final active = tasks.any((t) => t.status == DownloadStatus.queued || t.status == DownloadStatus.downloading || t.status == DownloadStatus.paused);
+        return ListView(padding: const EdgeInsets.fromLTRB(16,20,16,24), children: [
+          const Text('Downloads',style:TextStyle(fontSize:26,fontWeight:FontWeight.w800)),
+          const SizedBox(height:5),
+          Text('${books.length} files stored on this device',style:const TextStyle(color:Colors.white60)),
+          if(tasks.isNotEmpty) ...[
+            const SizedBox(height:18),
+            Row(children:[const Expanded(child:Text('Download queue',style:TextStyle(fontSize:18,fontWeight:FontWeight.w700))),TextButton.icon(onPressed:active?DownloadStore.pause:DownloadStore.resume,icon:Icon(active?Icons.pause:Icons.play_arrow),label:Text(active?'Pause':'Resume all'))]),
+            for(final task in tasks) Card(color:const Color(0xFF191E28),child:Padding(padding:const EdgeInsets.all(12),child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+              Text(task.title,style:const TextStyle(fontWeight:FontWeight.w700)),
+              const SizedBox(height:5),
+              Text('${task.source} · ${task.status.name}',style:const TextStyle(color:Colors.white60,fontSize:12)),
+              if(task.status==DownloadStatus.downloading||task.status==DownloadStatus.queued||task.status==DownloadStatus.paused) ...[
+                const SizedBox(height:8),LinearProgressIndicator(value:task.total>0?task.progress:null),
+                if(task.total>0) Text('${(task.received/1048576).toStringAsFixed(1)} / ${(task.total/1048576).toStringAsFixed(1)} MB',style:const TextStyle(color:Colors.white54,fontSize:11)),
+              ],
+              if(task.error!=null) Text(task.error!,style:const TextStyle(color:Colors.orangeAccent,fontSize:11)),
+              Row(mainAxisAlignment:MainAxisAlignment.end,children:[
+                if(task.status==DownloadStatus.failed) TextButton(onPressed:()=>DownloadStore.retry(task.id),child:const Text('Retry')),
+                IconButton(onPressed:()=>DownloadStore.removeTask(task.id),tooltip:'Remove from queue',icon:const Icon(Icons.close)),
+              ]),
+            ]))),
           ],
-        );
+          const SizedBox(height:12),
+          if(books.isEmpty) const Padding(padding:EdgeInsets.symmetric(vertical:36),child:Column(children:[Icon(Icons.download_for_offline_outlined,size:52,color:Color(0xFFB5A9FF)),SizedBox(height:14),Text('Nothing downloaded yet',style:TextStyle(fontSize:18,fontWeight:FontWeight.w700)),SizedBox(height:6),Text('Add supported public-domain ebooks to the queue and they will download automatically.',textAlign:TextAlign.center,style:TextStyle(color:Colors.white60))])),
+          for(final book in books) Card(color:const Color(0xFF191E28),child:ListTile(leading:const Icon(Icons.menu_book_rounded,color:Color(0xFFB5A9FF)),title:Text(book.title,maxLines:2,overflow:TextOverflow.ellipsis),subtitle:Text('${book.source} · ${(book.bytes/1048576).toStringAsFixed(1)} MB'),onTap:()=>OpenFilex.open(book.path),trailing:IconButton(tooltip:'Delete downloaded file',icon:const Icon(Icons.delete_outline),onPressed:()=>DownloadStore.remove(book)))),
+        ]);
       },
     );
   }
@@ -198,7 +192,7 @@ class _HomeScreenState extends State<HomeScreen> {
               ],
             ),
             const Spacer(),
-            IconButton(tooltip: 'Settings', onPressed: () {}, icon: const Icon(Icons.tune_rounded)),
+            IconButton(tooltip: 'What’s new', onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const ChangelogPage())), icon: const Icon(Icons.new_releases_outlined)),
           ],
         ),
         const SizedBox(height: 28),
