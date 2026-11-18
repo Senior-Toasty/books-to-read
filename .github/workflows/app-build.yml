@@ -44,22 +44,18 @@ jobs:
         working-directory: app
         run: flutter pub get
 
-      - name: Prepare bundled Readiculous logo
+      - name: Render exact Readiculous SVG artwork
         run: |
-          python3 -m pip install --break-system-packages Pillow
+          python3 -m pip install --break-system-packages CairoSVG Pillow
           python3 - <<'PY'
+          import cairosvg
           from pathlib import Path
-          from PIL import Image, ImageFile
-          ImageFile.LOAD_TRUNCATED_IMAGES = True
-          source = Path("app/assets/readiculous_icon.jpg")
+          source = Path("app/assets/readiculous_icon.svg")
           if not source.is_file():
-              raise SystemExit(f"Logo artwork missing: {source}")
-          with Image.open(source) as original:
-              original.load()
-              original.convert("RGB").save("app/assets/readiculous_icon.png", format="PNG", optimize=True)
-          print("Prepared bundled PNG logo from the supplied artwork.")
+              raise SystemExit(f"Exact Readiculous SVG artwork missing: {source}")
+          cairosvg.svg2png(url=str(source), write_to="app/assets/readiculous_icon.png", output_width=1024, output_height=1024)
+          print("Rendered the exact hand-drawn SVG logo into the app PNG asset.")
           PY
-
 
       - name: Analyze Dart code
         working-directory: app
@@ -78,43 +74,36 @@ jobs:
 
       - name: Generate Readiculous launcher icons
         run: |
-          python3 -m pip install --break-system-packages Pillow
           python3 - <<'PY'
           from pathlib import Path
-          from PIL import Image, ImageFile
-
-          # Recover intact pixels from the supplied JPEG if its final data
-          # segment is truncated. Do not substitute a different icon.
-          ImageFile.LOAD_TRUNCATED_IMAGES = True
-          source = Path("app/assets/readiculous_icon.jpg")
+          from PIL import Image
+          source = Path("app/assets/readiculous_icon.png")
           if not source.is_file():
-              raise SystemExit(f"Exact supplied Readiculous artwork is missing: {source}")
+              raise SystemExit(f"Rendered Readiculous artwork missing: {source}")
           with Image.open(source) as original:
               original.load()
-              image = original.convert("RGB").resize((512, 512), Image.Resampling.LANCZOS)
-          image.save("app/assets/readiculous_icon.png", format="PNG", optimize=True)
-
+              image = original.convert("RGBA").resize((512, 512), Image.Resampling.LANCZOS)
           root = Path("app/android/app/src/main/res")
           for density, size in (("mdpi",48),("hdpi",72),("xhdpi",96),("xxhdpi",144),("xxxhdpi",192)):
               folder = root / f"mipmap-{density}"
               folder.mkdir(parents=True, exist_ok=True)
               icon = image.resize((size,size), Image.Resampling.LANCZOS)
-              icon.save(folder / "ic_launcher.png", optimize=True)
-              icon.save(folder / "ic_launcher_foreground.png", optimize=True)
-
+              icon.save(folder / "ic_launcher.png")
+              icon.save(folder / "ic_launcher_round.png")
           adaptive = root / "mipmap-anydpi-v26"
           adaptive.mkdir(parents=True, exist_ok=True)
-          xml = """<?xml version="1.0" encoding="utf-8"?>
+          (adaptive / "ic_launcher.xml").write_text('''<?xml version="1.0" encoding="utf-8"?>
           <adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
               <background android:drawable="@android:color/black"/>
-              <foreground android:drawable="@mipmap/ic_launcher_foreground"/>
-          </adaptive-icon>
-          """
-          (adaptive / "ic_launcher.xml").write_text(xml, encoding="utf-8")
-          (adaptive / "ic_launcher_round.xml").write_text(xml, encoding="utf-8")
-          print("Generated launcher icons from the supplied Readiculous artwork.")
+              <foreground android:drawable="@mipmap/ic_launcher"/>
+          </adaptive-icon>''')
+          (adaptive / "ic_launcher_round.xml").write_text('''<?xml version="1.0" encoding="utf-8"?>
+          <adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+              <background android:drawable="@android:color/black"/>
+              <foreground android:drawable="@mipmap/ic_launcher_round"/>
+          </adaptive-icon>''')
+          print("Generated Android launcher icons from the exact Readiculous SVG artwork.")
           PY
-
 
       - name: Set Android app display name
         run: |
