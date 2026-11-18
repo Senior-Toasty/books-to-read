@@ -36,6 +36,15 @@ class SearchService {
       ('Project Gutenberg', _gutenberg),
       ('Internet Archive', _internetArchive),
       ('LibriVox', _librivox),
+      ('Library of Congress', _loc),
+      ('Wikisource', _wikisource),
+      ('OpenAlex', _openAlex),
+      ('OAPEN', _oapen),
+      ('OpenAIRE', _openAire),
+      ('Crossref', _crossref),
+      ('Wikidata', _wikidata),
+      ('DOAB', _doab),
+      ('Zenodo', _zenodo),
     ];
 
     final settled = await Future.wait(providers.map((provider) async {
@@ -230,6 +239,327 @@ class SearchService {
         coverUrl: _https(raw['coverart']?.toString()),
         description: _text(raw['description'], ''),
         accessLabel: 'Free public-domain audiobook',
+      );
+    }).whereType<BookResult>().toList();
+  }
+
+
+  Future<List<BookResult>> _loc(String query) async {
+    final uri = Uri.https('www.loc.gov', '/books/', {'fo': 'json', 'q': query, 'c': '10'});
+    final data = await _getJson(uri);
+    final items = data['results'];
+    if (items is! List) return [];
+    return items.map((raw) {
+      if (raw is! Map) return null;
+      final url = raw['url']?.toString();
+      if (url == null || url.isEmpty) return null;
+      final online = _join(raw['online_format']).toLowerCase();
+      return BookResult(
+        title: _text(raw['title'], 'Untitled'),
+        authors: _join(raw['contributor']),
+        source: 'Library of Congress',
+        url: url,
+        format: BookFormat.ebook,
+        year: _text(raw['date'], ''),
+        accessLabel: online.contains('pdf') || online.contains('image') ? 'Digitized item; access terms to check' : 'Catalogue record',
+      );
+    }).whereType<BookResult>().toList();
+  }
+
+  Future<List<BookResult>> _wikisource(String query) async {
+    final uri = Uri.https('en.wikisource.org', '/w/api.php', {
+      'action': 'query', 'list': 'search', 'srsearch': query, 'srnamespace': '0',
+      'srlimit': '10', 'format': 'json', 'origin': '*', 'maxlag': '1',
+    });
+    final data = await _getJson(uri);
+    final items = data['query'] is Map ? (data['query'] as Map)['search'] : null;
+    if (items is! List) return [];
+    return items.map((raw) {
+      if (raw is! Map) return null;
+      final title = _text(raw['title'], '');
+      if (title.isEmpty) return null;
+      return BookResult(
+        title: title,
+        authors: '',
+        source: 'Wikisource',
+        url: 'https://en.wikisource.org/wiki/${Uri.encodeComponent(title).replaceAll('%2F', '/') }',
+        format: BookFormat.ebook,
+        accessLabel: 'Free text candidate; check completeness',
+      );
+    }).whereType<BookResult>().toList();
+  }
+
+  Future<List<BookResult>> _openAlex(String query) async {
+    final uri = Uri.https('api.openalex.org', '/works', {
+      'search': query, 'per-page': '10',
+      'select': 'id,display_name,publication_year,authorships,open_access,best_oa_location,primary_location',
+    });
+    final data = await _getJson(uri);
+    final items = data['results'];
+    if (items is! List) return [];
+    return items.map((raw) {
+      if (raw is! Map) return null;
+      final oa = raw['open_access'] is Map ? (raw['open_access'] as Map)['is_oa'] == true : false;
+      if (!oa) return null;
+      final authorships = raw['authorships'];
+      final authors = authorships is List ? authorships.map((entry) {
+        if (entry is! Map) return '';
+        final author = entry['author'];
+        return author is Map ? _text(author['display_name'], '') : '';
+      }).where((name) => name.isNotEmpty).join('; ') : '';
+      final best = raw['best_oa_location'] is Map ? raw['best_oa_location'] as Map : const {};
+      final primary = raw['primary_location'] is Map ? raw['primary_location'] as Map : const {};
+      final url = _text(best['pdf_url'], '') .isNotEmpty
+          ? _text(best['pdf_url'], '')
+          : _text(best['landing_page_url'], '').isNotEmpty
+              ? _text(best['landing_page_url'], '')
+              : _text(primary['landing_page_url'], raw['id']?.toString() ?? '');
+      if (url.isEmpty) return null;
+      return BookResult(
+        title: _text(raw['display_name'], 'Untitled'),
+        authors: authors,
+        source: 'OpenAlex',
+        url: url,
+        format: BookFormat.ebook,
+        year: _text(raw['publication_year'], ''),
+        accessLabel: 'Open-access scholarly record; may not be the requested book',
+      );
+    }).whereType<BookResult>().toList();
+  }
+
+  Future<List<BookResult>> _oapen(String query) async {
+    final uri = Uri.https('library.oapen.org', '/rest/search', {
+      'query': 'dc.title:"${query.replaceAll('"', ' ')}"',
+      'expand': 'metadata,bitstreams', 'limit': '10',
+    });
+    return _repositoryBooks(await _getJson(uri), 'OAPEN', 'https://library.oapen.org');
+  }
+
+  Future<List<BookResult>> _doab(String query) async {
+    final uri = Uri.https('directory.doabooks.org', '/rest/search', {
+      'query': 'dc.title:"${query.replaceAll('"', ' ')}"',
+      'expand': 'metadata,bitstreams', 'limit': '10',
+    });
+    return _repositoryBooks(await _getJson(uri), 'DOAB', 'https://directory.doabooks.org');
+  }
+
+  List<BookResult> _repositoryBooks(Map<String, dynamic> data, String source, String base) {
+    final items = _repositoryItems(data);
+    return items.map((raw) {
+      if (raw is! Map) return null;
+      final title = _metadataValue(raw, 'dc.title').isNotEmpty
+          ? _metadataValue(raw, 'dc.title')
+          : _text(raw['name'], '');
+      if (title.isEmpty) return null;
+      final authors = [
+        ..._metadataValues(raw, 'dc.contributor.author'),
+        ..._metadataValues(raw, 'dc.contributor.editor'),
+      ].join('; ');
+      final year = _metadataValue(raw, 'dc.date.issued');
+      final license = _metadataValue(raw, 'dc.rights.uri').isNotEmpty
+          ? _metadataValue(raw, 'dc.rights.uri')
+          : _metadataValue(raw, 'dc.rights');
+      final handle = _text(raw['handle'], '');
+      final uuid = _text(raw['uuid'], '');
+      final landing = handle.isNotEmpty
+          ? '$base/handle/$handle'
+          : uuid.isNotEmpty ? '$base/items/$uuid' : '$base';
+      return BookResult(
+        title: title,
+        authors: authors,
+        source: source,
+        url: landing,
+        format: BookFormat.ebook,
+        year: year,
+        accessLabel: license.isNotEmpty ? 'Open-access catalogue; licence listed' : 'Open-access catalogue; verify licence',
+        description: license.isEmpty ? null : 'Licence metadata: $license',
+      );
+    }).whereType<BookResult>().toList();
+  }
+
+  List<dynamic> _repositoryItems(Map<String, dynamic> data) {
+    final searchResult = data['searchResult'];
+    if (searchResult is Map) {
+      final results = searchResult['searchResults'];
+      if (results is Map && results['entry'] != null) {
+        final entry = results['entry'];
+        return entry is List ? entry : [entry];
+      }
+      if (results is List) return results;
+    }
+    for (final key in ['results', 'items']) {
+      if (data[key] is List) return data[key] as List;
+    }
+    return [];
+  }
+
+  String _metadataValue(dynamic node, String wanted) {
+    final values = _metadataValues(node, wanted);
+    return values.isEmpty ? '' : values.first;
+  }
+
+  List<String> _metadataValues(dynamic node, String wanted) {
+    final found = <String>[];
+    void walk(dynamic value) {
+      if (value is Map) {
+        if (value['key']?.toString() == wanted && value['value'] != null) {
+          walkText(value['value'], found);
+        }
+        if (value.containsKey(wanted)) walkText(value[wanted], found);
+        for (final entry in value.entries) {
+          if (entry.key.toString() != wanted && entry.key.toString() != 'value') walk(entry.value);
+        }
+      } else if (value is List) {
+        for (final item in value) walk(item);
+      }
+    }
+    walk(node is Map ? node['metadata'] ?? node : node);
+    return found.map((s) => s.trim()).where((s) => s.isNotEmpty).toSet().toList();
+  }
+
+  void walkText(dynamic value, List<String> output) {
+    if (value is String || value is num) {
+      output.add(value.toString());
+    } else if (value is List) {
+      for (final item in value) walkText(item, output);
+    } else if (value is Map) {
+      if (value['value'] != null) walkText(value['value'], output);
+      else if (value['name'] != null) walkText(value['name'], output);
+    }
+  }
+
+  Future<List<BookResult>> _openAire(String query) async {
+    final uri = Uri.https('api.openaire.eu', '/graph/v4/research-products', {
+      'search': query, 'page': '1', 'page_size': '10',
+    });
+    final data = await _getJson(uri);
+    final items = data['results'];
+    if (items is! List) return [];
+    return items.map((raw) {
+      if (raw is! Map) return null;
+      final title = _text(raw['mainTitle'], _text(raw['title'], ''));
+      if (title.isEmpty) return null;
+      final names = <String>[];
+      _collectPeople(raw['authors'] ?? raw['author'], names);
+      final instances = raw['instances'] is List ? raw['instances'] as List : const [];
+      final first = instances.isNotEmpty && instances.first is Map ? instances.first as Map : const {};
+      final id = _text(raw['id'], '');
+      final url = _text(first['webUrl'], _text(first['url'], id.startsWith('http') ? id : 'https://explore.openaire.eu/search/publication?pid=${Uri.encodeComponent(id)}'));
+      return BookResult(
+        title: title,
+        authors: names.join('; '),
+        source: 'OpenAIRE',
+        url: url,
+        format: BookFormat.ebook,
+        year: _text(raw['publicationDate'], ''),
+        accessLabel: 'Research record; verify book/full-text status',
+        description: _text(raw['bestAccessRight'] is Map ? (raw['bestAccessRight'] as Map)['label'] : null, ''),
+      );
+    }).whereType<BookResult>().toList();
+  }
+
+  void _collectPeople(dynamic value, List<String> names) {
+    if (value is String && value.trim().isNotEmpty) {
+      names.add(value.trim());
+    } else if (value is List) {
+      for (final item in value) _collectPeople(item, names);
+    } else if (value is Map) {
+      for (final key in ['fullName', 'displayName', 'name']) {
+        final candidate = value[key];
+        if (candidate is String && candidate.trim().isNotEmpty) {
+          names.add(candidate.trim());
+          return;
+        }
+      }
+      for (final child in value.values) _collectPeople(child, names);
+    }
+  }
+
+  Future<List<BookResult>> _crossref(String query) async {
+    final uri = Uri.https('api.crossref.org', '/works', {'query.bibliographic': query, 'rows': '20'});
+    final data = await _getJson(uri);
+    final message = data['message'];
+    final items = message is Map ? message['items'] : null;
+    if (items is! List) return [];
+    const bookTypes = {'book', 'monograph', 'edited-book', 'reference-book', 'book-series', 'book-set', 'book-chapter'};
+    return items.map((raw) {
+      if (raw is! Map || !bookTypes.contains(raw['type']?.toString())) return null;
+      final titles = raw['title'];
+      final title = titles is List && titles.isNotEmpty ? _text(titles.first, '') : '';
+      if (title.isEmpty) return null;
+      final people = raw['author'] is List ? (raw['author'] as List).map((person) {
+        if (person is! Map) return '';
+        return '${_text(person['given'], '')} ${_text(person['family'], '')}'.trim();
+      }).where((name) => name.isNotEmpty).join('; ') : '';
+      final published = raw['published'] is Map ? raw['published'] as Map : raw['issued'] is Map ? raw['issued'] as Map : const {};
+      final dateParts = published['date-parts'];
+      final year = dateParts is List && dateParts.isNotEmpty && dateParts.first is List && (dateParts.first as List).isNotEmpty ? (dateParts.first as List).first.toString() : '';
+      final doi = _text(raw['DOI'], '');
+      final link = _text(raw['URL'], doi.isEmpty ? '' : 'https://doi.org/$doi');
+      if (link.isEmpty) return null;
+      return BookResult(
+        title: title,
+        authors: people,
+        source: 'Crossref',
+        url: link,
+        format: BookFormat.ebook,
+        year: year,
+        accessLabel: 'Bibliographic metadata only',
+        description: 'Crossref metadata does not establish free full-text access.',
+      );
+    }).whereType<BookResult>().toList();
+  }
+
+  Future<List<BookResult>> _wikidata(String query) async {
+    final uri = Uri.https('www.wikidata.org', '/w/api.php', {
+      'action': 'wbsearchentities', 'search': query, 'language': 'en', 'format': 'json', 'limit': '10',
+    });
+    final data = await _getJson(uri);
+    final items = data['search'];
+    if (items is! List) return [];
+    return items.map((raw) {
+      if (raw is! Map) return null;
+      final id = _text(raw['id'], '');
+      final title = _text(raw['label'], '');
+      if (id.isEmpty || title.isEmpty) return null;
+      return BookResult(
+        title: title,
+        authors: '',
+        source: 'Wikidata',
+        url: 'https://www.wikidata.org/wiki/$id',
+        format: BookFormat.ebook,
+        accessLabel: 'Bibliographic metadata only',
+        description: _text(raw['description'], ''),
+      );
+    }).whereType<BookResult>().toList();
+  }
+
+  Future<List<BookResult>> _zenodo(String query) async {
+    final uri = Uri.https('zenodo.org', '/api/records', {'q': 'metadata.title:"$query"', 'size': '10'});
+    final data = await _getJson(uri);
+    final hits = data['hits'];
+    final items = hits is Map ? hits['hits'] : data['results'];
+    if (items is! List) return [];
+    return items.map((raw) {
+      if (raw is! Map) return null;
+      final metadata = raw['metadata'] is Map ? raw['metadata'] as Map : raw;
+      final creators = metadata['creators'];
+      final authors = creators is List ? creators.map((person) => person is Map ? _text(person['name'], '') : '').where((s) => s.isNotEmpty).join('; ') : '';
+      final id = _text(raw['id'], '');
+      final links = raw['links'] is Map ? raw['links'] as Map : const {};
+      final url = _text(links['html'], id.isEmpty ? '' : 'https://zenodo.org/records/$id');
+      if (url.isEmpty) return null;
+      final license = metadata['license'] is Map ? _text((metadata['license'] as Map)['id'], _text((metadata['license'] as Map)['title'], '')) : '';
+      final resource = metadata['resource_type'] is Map ? _text((metadata['resource_type'] as Map)['title'], '') : '';
+      return BookResult(
+        title: _text(metadata['title'], 'Untitled'),
+        authors: authors,
+        source: 'Zenodo',
+        url: url,
+        format: BookFormat.ebook,
+        year: _text(metadata['publication_date'], ''),
+        accessLabel: 'Repository record; check file and licence',
+        description: [if (resource.isNotEmpty) 'Resource type: $resource', if (license.isNotEmpty) 'Licence: $license'].join(' · '),
       );
     }).whereType<BookResult>().toList();
   }
