@@ -69,7 +69,9 @@ jobs:
           source = Path("app/assets/readiculous_icon.jpg")
           if not source.is_file():
               raise SystemExit(f"Exact supplied Readiculous artwork is missing: {source}")
-          image = Image.open(source).convert("RGB").resize((512, 512), Image.Resampling.LANCZOS)
+          with Image.open(source) as original:
+    original.load()
+    image = original.convert("RGB").resize((512, 512), Image.Resampling.LANCZOS)
           root = Path("app/android/app/src/main/res")
           for density, size in (("mdpi",48),("hdpi",72),("xhdpi",96),("xxhdpi",144),("xxxhdpi",192)):
               folder = root / f"mipmap-{density}"
