@@ -368,7 +368,7 @@ class _SearchResultsPageState extends State<SearchResultsPage> {
       borderRadius: BorderRadius.circular(9),
       child: SizedBox(width: 74, height: 106, child: url == null
           ? Container(color: const Color(0xFF292E3A), child: Icon(icon, color: Colors.white38, size: 28))
-          : Image.network(url, fit: BoxFit.cover, errorBuilder: (_, __, ___) => Container(color: const Color(0xFF292E3A), child: Icon(audio ? Icons.headphones : Icons.menu_book, color: Colors.white38, size: 28)))),
+          : Image.network(url, fit: BoxFit.cover, errorBuilder: (_, __, ___) => Container(color: const Color(0xFF292E3A), child: Icon(icon, color: Colors.white38, size: 28)))),
     );
   }
 
