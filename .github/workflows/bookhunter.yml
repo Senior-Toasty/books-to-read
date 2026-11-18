@@ -25,7 +25,7 @@ on:
       concurrency:
         description: "Maximum simultaneous book jobs (1-32)."
         required: false
-        default: 4
+        default: 24
         type: number
   schedule:
     - cron: "17 3 1 * *"
@@ -60,9 +60,9 @@ jobs:
         env:
           RETRY_FAILED: ${{ inputs.retry_failed || github.event_name != 'workflow_dispatch' }}
           SOURCES: ${{ inputs.sources || 'all' }}
-          CONCURRENCY: ${{ inputs.concurrency || 4 }}
+          CONCURRENCY: ${{ inputs.concurrency || 24 }}
         run: |
-          if ! [[ "$CONCURRENCY" =~ ^[0-9]+$ ]]; then CONCURRENCY=4; fi
+          if ! [[ "$CONCURRENCY" =~ ^[0-9]+$ ]]; then CONCURRENCY=24; fi
           if (( CONCURRENCY < 1 )); then CONCURRENCY=1; fi
           if (( CONCURRENCY > 32 )); then CONCURRENCY=32; fi
           args=(--output reports --concurrency "$CONCURRENCY")
