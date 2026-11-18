@@ -16,7 +16,7 @@ void main() {
       }
       if (request.url.host == 'openlibrary.org') {
         return http.Response(jsonEncode({'docs': [
-          {'key': '/works/OL1W', 'title': 'Dune', 'author_name': ['Frank Herbert'], 'first_publish_year': 1965, 'cover_i': 12}
+          {'key': '/works/OL1W', 'title': 'Dune', 'author_name': ['Frank Herbert'], 'first_publish_year': 1965, 'cover_i': 12, 'ebook_access': 'public'}
         ]}), 200);
       }
       if (request.url.host == 'gutendex.com') return http.Response(jsonEncode({'results': []}), 200);
