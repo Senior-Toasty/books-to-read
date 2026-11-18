@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:bookhunter/search/book_result.dart';
 import 'package:bookhunter/search/search_service.dart';
 import 'package:bookhunter/library/library_store.dart';
+import 'package:bookhunter/downloads/download_store.dart';
+import 'package:open_filex/open_filex.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 void main() => runApp(const BookHunterApp());
@@ -53,6 +55,7 @@ class _HomeScreenState extends State<HomeScreen> {
   void initState() {
     super.initState();
     LibraryStore.load();
+    DownloadStore.load();
   }
 
   @override
@@ -77,8 +80,7 @@ class _HomeScreenState extends State<HomeScreen> {
           children: [
             _discoverPage(),
             _libraryPage(),
-            _placeholderPage(Icons.download_rounded, 'Downloads',
-                'Download queues and offline files arrive in Stage 3.'),
+            _downloadsPage(),
           ],
         ),
       ),
@@ -91,6 +93,51 @@ class _HomeScreenState extends State<HomeScreen> {
           NavigationDestination(icon: Icon(Icons.download_outlined), selectedIcon: Icon(Icons.download), label: 'Downloads'),
         ],
       ),
+    );
+  }
+
+
+  Widget _downloadsPage() {
+    return AnimatedBuilder(
+      animation: DownloadStore.items,
+      builder: (context, _) {
+        final books = DownloadStore.items.value;
+        return ListView(
+          padding: const EdgeInsets.fromLTRB(16, 20, 16, 24),
+          children: [
+            const Text('Downloads', style: TextStyle(fontSize: 26, fontWeight: FontWeight.w800)),
+            const SizedBox(height: 5),
+            Text('${books.length} files stored on this device', style: const TextStyle(color: Colors.white60)),
+            const SizedBox(height: 14),
+            if (books.isEmpty)
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 48),
+                child: Column(children: [
+                  Icon(Icons.download_for_offline_outlined, size: 52, color: Color(0xFFB5A9FF)),
+                  SizedBox(height: 14),
+                  Text('Nothing downloaded yet', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+                  SizedBox(height: 6),
+                  Text('Eligible public-domain EPUB and PDF files will appear here.', textAlign: TextAlign.center, style: TextStyle(color: Colors.white60)),
+                ]),
+              ),
+            for (final book in books)
+              Card(
+                color: const Color(0xFF191E28),
+                child: ListTile(
+                  leading: const Icon(Icons.menu_book_rounded, color: Color(0xFFB5A9FF)),
+                  title: Text(book.title, maxLines: 2, overflow: TextOverflow.ellipsis),
+                  subtitle: Text('${book.source} · ${(book.bytes / 1048576).toStringAsFixed(1)} MB'),
+                  onTap: () => OpenFilex.open(book.path),
+                  trailing: IconButton(
+                    tooltip: 'Delete downloaded file',
+                    icon: const Icon(Icons.delete_outline),
+                    onPressed: () => DownloadStore.remove(book),
+                  ),
+                ),
+              ),
+          ],
+        );
+      },
     );
   }
 
@@ -421,6 +468,23 @@ class _SearchResultsPageState extends State<SearchResultsPage> {
             if (item.accessLabel != null && item.accessLabel!.isNotEmpty) Padding(padding: const EdgeInsets.only(top: 6), child: Text(item.accessLabel!, style: const TextStyle(fontSize: 11, color: Colors.white54))),
             if (item.description != null && item.description!.isNotEmpty) Padding(padding: const EdgeInsets.only(top: 7), child: Text(item.description!, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 12, color: Colors.white54))),
             Row(mainAxisAlignment: MainAxisAlignment.end, children: [
+              if (item.downloadUrl != null && item.accessLabel == 'Public-domain ebook')
+                IconButton(
+                  tooltip: 'Download for offline use',
+                  onPressed: () async {
+                    try {
+                      await DownloadStore.download(item);
+                      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Saved for offline use.')),
+                      );
+                    } catch (error) {
+                      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('Download failed: $error')),
+                      );
+                    }
+                  },
+                  icon: const Icon(Icons.download_for_offline_outlined, color: Color(0xFF54C6B3)),
+                ),
               IconButton(
                 tooltip: 'Save to library',
                 onPressed: () async {
