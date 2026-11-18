@@ -28,11 +28,24 @@ void main() {
       if (request.url.host == 'www.loc.gov') return http.Response(jsonEncode({'results': [{'title': 'Dune Library edition', 'contributor': ['Frank Herbert'], 'url': 'https://loc.gov/item/dune', 'date': '1965', 'online_format': ['pdf']}]}), 200);
       if (request.url.host == 'en.wikisource.org') return http.Response(jsonEncode({'query': {'search': []}}), 200);
       if (request.url.host == 'api.openalex.org') return http.Response(jsonEncode({'results': []}), 200);
-      if (request.url.host == 'library.oapen.org') return http.Response(jsonEncode({'searchResult': {'searchResults': {'entry': []}}}), 200);
+      if (request.url.host == 'library.oapen.org') return http.Response(jsonEncode({'searchResult': {'searchResults': {'entry': [
+        {'handle': '123/456', 'metadata': [
+          {'key': 'dc.title', 'value': [{'value': 'Open Access Example Book'}]},
+          {'key': 'dc.contributor.author', 'value': [{'value': 'Sample Author'}]},
+          {'key': 'dc.date.issued', 'value': [{'value': '2024'}]},
+          {'key': 'dc.rights.uri', 'value': [{'value': 'https://creativecommons.org/licenses/by/4.0/'}]}
+        ]}
+      ]}}}), 200);
       if (request.url.host == 'api.openaire.eu') return http.Response(jsonEncode({'results': []}), 200);
       if (request.url.host == 'api.crossref.org') return http.Response(jsonEncode({'message': {'items': [{'type': 'book', 'title': ['Dune Encyclopedia'], 'author': [{'given': 'Frank', 'family': 'Herbert'}], 'published': {'date-parts': [[1984]]}, 'DOI': '10.0000/dune', 'URL': 'https://crossref.test/dune'}]}}), 200);
       if (request.url.host == 'www.wikidata.org') return http.Response(jsonEncode({'search': []}), 200);
-      if (request.url.host == 'directory.doabooks.org') return http.Response(jsonEncode({'searchResult': {'searchResults': {'entry': []}}}), 200);
+      if (request.url.host == 'directory.doabooks.org') return http.Response(jsonEncode({'searchResult': {'searchResults': {'entry': [
+        {'handle': '987/654', 'metadata': [
+          {'key': 'dc.title', 'value': [{'value': 'DOAB Sample'}]},
+          {'key': 'dc.contributor.author', 'value': [{'value': 'Another Author'}]},
+          {'key': 'dc.date.issued', 'value': [{'value': '2022'}]}
+        ]}
+      ]}}}), 200);
       if (request.url.host == 'zenodo.org') return http.Response(jsonEncode({'hits': {'hits': []}}), 200);
       if (request.url.host == 'librivox.org') {
         return http.Response(jsonEncode({'books': [
@@ -46,9 +59,11 @@ void main() {
     final response = await service.search('Dune');
     expect(response.completedProviders, 14);
     expect(response.failures, isEmpty);
-    expect(response.results.where((r) => r.format == BookFormat.ebook), hasLength(2));
+    expect(response.results.where((r) => r.format == BookFormat.ebook), hasLength(4));
     expect(response.results.where((r) => r.format == BookFormat.audiobook), hasLength(2));
     expect(response.results.where((r) => r.format == BookFormat.catalogue), hasLength(1));
+    expect(response.results.any((r) => r.source == 'OAPEN' && r.title == 'Open Access Example Book'), isTrue);
+    expect(response.results.any((r) => r.source == 'DOAB' && r.title == 'DOAB Sample'), isTrue);
     expect(response.results.any((r) => r.source == 'Crossref' && r.accessLabel == 'Bibliographic metadata only'), isTrue);
     expect(response.results.any((r) => r.source == 'LibriVox'), isTrue);
     expect(response.results.any((r) => r.source == 'Library of Congress'), isTrue);
