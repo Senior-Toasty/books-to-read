@@ -11,8 +11,8 @@ import 'package:http/testing.dart';
 
 void main() {
   testWidgets('BookHunter home renders discover and format cards', (tester) async {
-    await tester.pumpWidget(const BookHunterApp());
-    expect(find.text('BOOKHUNTER'), findsOneWidget);
+    await tester.pumpWidget(const ReadiculousApp());
+    expect(find.text('READICULOUS'), findsOneWidget);
     expect(find.text('Ebooks'), findsOneWidget);
     expect(find.text('Audiobooks'), findsOneWidget);
     expect(find.text('Discover'), findsOneWidget);
@@ -20,7 +20,7 @@ void main() {
   });
 
   testWidgets('navigation opens library and downloads placeholders', (tester) async {
-    await tester.pumpWidget(const BookHunterApp());
+    await tester.pumpWidget(const ReadiculousApp());
     await tester.tap(find.text('Library'));
     await tester.pumpAndSettle();
     expect(find.text('Your library'), findsOneWidget);
