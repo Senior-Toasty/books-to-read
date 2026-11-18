@@ -30,6 +30,27 @@ class BookResult {
       '${authors.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '')}|'
       '${format.name}';
 
+  Map<String, dynamic> toJson() => {
+        'title': title, 'authors': authors, 'source': source, 'url': url,
+        'format': format.name, 'year': year, 'coverUrl': coverUrl,
+        'description': description, 'accessLabel': accessLabel,
+      };
+
+  factory BookResult.fromJson(Map<String, dynamic> json) => BookResult(
+        title: json['title']?.toString() ?? '',
+        authors: json['authors']?.toString() ?? '',
+        source: json['source']?.toString() ?? '',
+        url: json['url']?.toString() ?? '',
+        format: BookFormat.values.firstWhere(
+          (value) => value.name == json['format'],
+          orElse: () => BookFormat.catalogue,
+        ),
+        year: json['year']?.toString(),
+        coverUrl: json['coverUrl']?.toString(),
+        description: json['description']?.toString(),
+        accessLabel: json['accessLabel']?.toString(),
+      );
+
   bool matches(SearchMode mode) => switch (mode) {
         SearchMode.all => true,
         SearchMode.ebooks => format != BookFormat.audiobook,
