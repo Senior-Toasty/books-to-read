@@ -183,14 +183,15 @@ class _HomeScreenState extends State<HomeScreen> {
           children: [
             ClipRRect(borderRadius: BorderRadius.circular(15), child: Image.asset('assets/readiculous_icon.jpg', width: 46, height: 46, fit: BoxFit.cover)),
             const SizedBox(width: 12),
-            const Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('READICULOUS', style: TextStyle(letterSpacing: 2, fontSize: 11, fontWeight: FontWeight.w700, color: Color(0xFFB5A9FF))),
-                Text('Find your next obsession', style: TextStyle(fontSize: 19, fontWeight: FontWeight.w700)),
-              ],
+            const Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('READICULOUS', style: TextStyle(letterSpacing: 2, fontSize: 11, fontWeight: FontWeight.w700, color: Color(0xFFB5A9FF))),
+                  Text('Find your next obsession', style: TextStyle(fontSize: 19, fontWeight: FontWeight.w700), maxLines: 1, overflow: TextOverflow.ellipsis),
+                ],
+              ),
             ),
-            const Spacer(),
             IconButton(tooltip: 'What’s new', onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const ChangelogPage())), icon: const Icon(Icons.new_releases_outlined)),
           ],
         ),
