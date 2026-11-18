@@ -1,4 +1,4 @@
-enum BookFormat { ebook, audiobook }
+enum BookFormat { ebook, audiobook, catalogue }
 
 enum SearchMode { all, ebooks, audiobooks }
 
@@ -32,7 +32,7 @@ class BookResult {
 
   bool matches(SearchMode mode) => switch (mode) {
         SearchMode.all => true,
-        SearchMode.ebooks => format == BookFormat.ebook,
+        SearchMode.ebooks => format != BookFormat.audiobook,
         SearchMode.audiobooks => format == BookFormat.audiobook,
       };
 }
