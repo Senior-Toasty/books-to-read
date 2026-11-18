@@ -76,12 +76,12 @@ jobs:
               shutil.copyfile("app/assets/readiculous_icon.png", folder / "ic_launcher_foreground.png")
           adaptive = root / "mipmap-anydpi-v26"
           adaptive.mkdir(parents=True, exist_ok=True)
-          (adaptive / "ic_launcher.xml").write_text(
-              '<?xml version="1.0" encoding="utf-8"?>\\n'
-              '<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">\\n'
-              '    <background android:drawable="@android:color/background_dark"/>\\n'
-              '    <foreground android:drawable="@mipmap/ic_launcher_foreground"/>\\n'
-              '</adaptive-icon>\\n', encoding="utf-8")
+          (adaptive / "ic_launcher.xml").write_text("""<?xml version="1.0" encoding="utf-8"?>
+          <adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+              <background android:drawable="@android:color/background_dark"/>
+              <foreground android:drawable="@mipmap/ic_launcher_foreground"/>
+          </adaptive-icon>
+          """, encoding="utf-8")
           shutil.copyfile(adaptive / "ic_launcher.xml", adaptive / "ic_launcher_round.xml")
           print("Generated Readiculous launcher icon resources.")
           PY
