@@ -1,6 +1,7 @@
-// ignore_for_file: deprecated_member_use
-// Keep the classic Material API while the Flutter SDK's new material_ui migration settles.
 import 'package:flutter/material.dart';
+import 'package:bookhunter/search/book_result.dart';
+import 'package:bookhunter/search/search_service.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 void main() => runApp(const BookHunterApp());
 
@@ -21,7 +22,6 @@ class BookHunterApp extends StatelessWidget {
           brightness: Brightness.dark,
           surface: const Color(0xFF191E28),
         ),
-        fontFamily: 'Roboto',
         inputDecorationTheme: InputDecorationTheme(
           filled: true,
           fillColor: const Color(0xFF1B202B),
@@ -53,6 +53,13 @@ class _HomeScreenState extends State<HomeScreen> {
     super.dispose();
   }
 
+  void _search(String query, {SearchMode mode = SearchMode.all}) {
+    if (query.trim().isEmpty) return;
+    Navigator.of(context).push(MaterialPageRoute(
+      builder: (_) => SearchResultsPage(query: query.trim(), initialMode: mode),
+    ));
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -62,9 +69,9 @@ class _HomeScreenState extends State<HomeScreen> {
           children: [
             _discoverPage(),
             _placeholderPage(Icons.library_books_rounded, 'Your library',
-                'Books and audiobooks you save will live here.'),
+                'Your saved books and audiobooks will live here.'),
             _placeholderPage(Icons.download_rounded, 'Downloads',
-                'Your download queue and offline files will appear here.'),
+                'Download queues and offline files arrive in Stage 3.'),
           ],
         ),
       ),
@@ -72,18 +79,9 @@ class _HomeScreenState extends State<HomeScreen> {
         selectedIndex: _selectedTab,
         onDestinationSelected: (index) => setState(() => _selectedTab = index),
         destinations: const [
-          NavigationDestination(
-              icon: Icon(Icons.explore_outlined),
-              selectedIcon: Icon(Icons.explore),
-              label: 'Discover'),
-          NavigationDestination(
-              icon: Icon(Icons.library_books_outlined),
-              selectedIcon: Icon(Icons.library_books),
-              label: 'Library'),
-          NavigationDestination(
-              icon: Icon(Icons.download_outlined),
-              selectedIcon: Icon(Icons.download),
-              label: 'Downloads'),
+          NavigationDestination(icon: Icon(Icons.explore_outlined), selectedIcon: Icon(Icons.explore), label: 'Discover'),
+          NavigationDestination(icon: Icon(Icons.library_books_outlined), selectedIcon: Icon(Icons.library_books), label: 'Library'),
+          NavigationDestination(icon: Icon(Icons.download_outlined), selectedIcon: Icon(Icons.download), label: 'Downloads'),
         ],
       ),
     );
@@ -102,143 +100,90 @@ class _HomeScreenState extends State<HomeScreen> {
                 color: const Color(0xFF8C7CFF).withValues(alpha: 0.16),
                 borderRadius: BorderRadius.circular(15),
               ),
-              child: const Icon(Icons.auto_stories_rounded,
-                  color: Color(0xFFB5A9FF)),
+              child: const Icon(Icons.auto_stories_rounded, color: Color(0xFFB5A9FF)),
             ),
             const SizedBox(width: 12),
             const Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('BOOKHUNTER',
-                    style: TextStyle(
-                        letterSpacing: 2,
-                        fontSize: 11,
-                        fontWeight: FontWeight.w700,
-                        color: Color(0xFFB5A9FF))),
-                Text('Find your next obsession',
-                    style:
-                        TextStyle(fontSize: 19, fontWeight: FontWeight.w700)),
+                Text('BOOKHUNTER', style: TextStyle(letterSpacing: 2, fontSize: 11, fontWeight: FontWeight.w700, color: Color(0xFFB5A9FF))),
+                Text('Find your next obsession', style: TextStyle(fontSize: 19, fontWeight: FontWeight.w700)),
               ],
             ),
             const Spacer(),
-            IconButton(
-              tooltip: 'Settings',
-              onPressed: () {},
-              icon: const Icon(Icons.tune_rounded),
-            ),
+            IconButton(tooltip: 'Settings', onPressed: () {}, icon: const Icon(Icons.tune_rounded)),
           ],
         ),
         const SizedBox(height: 28),
-        const Text('A universe of books.',
-            style: TextStyle(fontSize: 29, fontWeight: FontWeight.w800)),
+        const Text('A universe of books.', style: TextStyle(fontSize: 29, fontWeight: FontWeight.w800)),
         const SizedBox(height: 5),
-        Text('Books, audiobooks, and stories worth getting lost in.',
-            style: TextStyle(color: Colors.white.withValues(alpha: .65))),
+        Text('Books, audiobooks, and stories worth getting lost in.', style: TextStyle(color: Colors.white.withValues(alpha: .65))),
         const SizedBox(height: 22),
         TextField(
           controller: _searchController,
           textInputAction: TextInputAction.search,
-          onSubmitted: (_) {},
+          onSubmitted: _search,
           decoration: InputDecoration(
             hintText: 'Search title, author, or ISBN',
             prefixIcon: const Icon(Icons.search_rounded),
-            suffixIcon: IconButton(
-              tooltip: 'Clear search',
-              onPressed: _searchController.clear,
-              icon: const Icon(Icons.close_rounded),
-            ),
+            suffixIcon: IconButton(tooltip: 'Search', onPressed: () => _search(_searchController.text), icon: const Icon(Icons.arrow_forward_rounded)),
           ),
         ),
-        const SizedBox(height: 18),
+        const SizedBox(height: 12),
         Row(
           children: [
-            Expanded(
-              child: _formatCard(
-                icon: Icons.menu_book_rounded,
-                title: 'Ebooks',
-                subtitle: 'Discover & read',
-                tint: const Color(0xFF8C7CFF),
-              ),
-            ),
+            Expanded(child: _formatCard(icon: Icons.menu_book_rounded, title: 'Ebooks', subtitle: 'Discover & read', tint: const Color(0xFF8C7CFF), onTap: () => _search(_searchController.text, mode: SearchMode.ebooks))),
             const SizedBox(width: 12),
-            Expanded(
-              child: _formatCard(
-                icon: Icons.headphones_rounded,
-                title: 'Audiobooks',
-                subtitle: 'Listen anywhere',
-                tint: const Color(0xFF54C6B3),
-              ),
-            ),
+            Expanded(child: _formatCard(icon: Icons.headphones_rounded, title: 'Audiobooks', subtitle: 'Find & listen', tint: const Color(0xFF54C6B3), onTap: () => _search(_searchController.text, mode: SearchMode.audiobooks))),
           ],
         ),
         const SizedBox(height: 26),
-        const _SectionHeading(title: 'Your discovery engine', subtitle: 'Coming online in Stage 2'),
+        const _SectionHeading(title: 'Search is online', subtitle: 'Stage 2'),
         const SizedBox(height: 12),
         Container(
           padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: const Color(0xFF191E28),
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: Colors.white.withValues(alpha: .06)),
-          ),
+          decoration: BoxDecoration(color: const Color(0xFF191E28), borderRadius: BorderRadius.circular(20), border: Border.all(color: Colors.white.withValues(alpha: .06))),
           child: const Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Icon(Icons.travel_explore_rounded,
-                  size: 26, color: Color(0xFFB5A9FF)),
+              Icon(Icons.travel_explore_rounded, size: 26, color: Color(0xFFB5A9FF)),
               SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('Search across sources',
-                        style: TextStyle(fontWeight: FontWeight.w700)),
-                    SizedBox(height: 5),
-                    Text(
-                      'The search engine is being connected. Results from multiple catalogues will appear here.',
-                      style: TextStyle(color: Colors.white60, height: 1.4),
-                    ),
-                  ],
-                ),
-              ),
+              Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text('Search five catalogues at once', style: TextStyle(fontWeight: FontWeight.w700)),
+                SizedBox(height: 5),
+                Text('Google Books, Open Library, Gutenberg, Internet Archive, and LibriVox. Results are gathered in parallel.', style: TextStyle(color: Colors.white60, height: 1.4)),
+              ])),
             ],
           ),
         ),
         const SizedBox(height: 26),
-        const _SectionHeading(title: 'Built for your shelves', subtitle: 'All in one place'),
+        const _SectionHeading(title: 'Built for your shelves', subtitle: 'Coming next'),
         const SizedBox(height: 12),
-        _featureRow(Icons.download_for_offline_rounded, 'Offline downloads',
-            'Keep your books available without internet.'),
-        _featureRow(Icons.bookmark_add_rounded, 'Reading progress',
-            'Pick up exactly where you left off.'),
-        _featureRow(Icons.queue_music_rounded, 'Audiobook controls',
-            'Chapters, speed controls, and sleep timer.'),
+        _featureRow(Icons.download_for_offline_rounded, 'Offline downloads', 'Keep books available without internet.'),
+        _featureRow(Icons.bookmark_add_rounded, 'Reading progress', 'Pick up exactly where you left off.'),
+        _featureRow(Icons.queue_music_rounded, 'Audiobook controls', 'Chapters, speed controls, and sleep timer.'),
       ],
     );
   }
 
-  Widget _formatCard({
-    required IconData icon,
-    required String title,
-    required String subtitle,
-    required Color tint,
-  }) {
-    return Container(
-      height: 118,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: tint.withValues(alpha: .10),
+  Widget _formatCard({required IconData icon, required String title, required String subtitle, required Color tint, required VoidCallback onTap}) {
+    return Material(
+      color: tint.withValues(alpha: .10),
+      borderRadius: BorderRadius.circular(20),
+      child: InkWell(
+        onTap: onTap,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: tint.withValues(alpha: .22)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(icon, color: tint, size: 24),
-          const Spacer(),
-          Text(title, style: const TextStyle(fontWeight: FontWeight.w700)),
-          Text(subtitle, style: const TextStyle(color: Colors.white60, fontSize: 12)),
-        ],
+        child: Container(
+          height: 118,
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(borderRadius: BorderRadius.circular(20), border: Border.all(color: tint.withValues(alpha: .22))),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Icon(icon, color: tint, size: 24),
+            const Spacer(),
+            Text(title, style: const TextStyle(fontWeight: FontWeight.w700)),
+            Text(subtitle, style: const TextStyle(color: Colors.white60, fontSize: 12)),
+          ]),
+        ),
       ),
     );
   }
@@ -246,68 +191,208 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _featureRow(IconData icon, String title, String subtitle) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 13),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(11),
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: .045),
-              borderRadius: BorderRadius.circular(13),
-            ),
-            child: Icon(icon, color: Colors.white70),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(title, style: const TextStyle(fontWeight: FontWeight.w600)),
-                const SizedBox(height: 3),
-                Text(subtitle,
-                    style: const TextStyle(color: Colors.white54, fontSize: 12)),
-              ],
-            ),
-          ),
-        ],
-      ),
+      child: Row(children: [
+        Container(padding: const EdgeInsets.all(11), decoration: BoxDecoration(color: Colors.white.withValues(alpha: .045), borderRadius: BorderRadius.circular(13)), child: Icon(icon, color: Colors.white70)),
+        const SizedBox(width: 12),
+        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(title, style: const TextStyle(fontWeight: FontWeight.w600)),
+          const SizedBox(height: 3),
+          Text(subtitle, style: const TextStyle(color: Colors.white54, fontSize: 12)),
+        ])),
+      ]),
     );
   }
 
   Widget _placeholderPage(IconData icon, String title, String description) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, size: 56, color: const Color(0xFFB5A9FF)),
-            const SizedBox(height: 18),
-            Text(title, style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 8),
-            Text(description,
-                textAlign: TextAlign.center,
-                style: const TextStyle(color: Colors.white60)),
-          ],
+    return Center(child: Padding(
+      padding: const EdgeInsets.all(32),
+      child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+        Icon(icon, size: 56, color: const Color(0xFFB5A9FF)),
+        const SizedBox(height: 18),
+        Text(title, style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+        const SizedBox(height: 8),
+        Text(description, textAlign: TextAlign.center, style: const TextStyle(color: Colors.white60)),
+      ]),
+    ));
+  }
+}
+
+class SearchResultsPage extends StatefulWidget {
+  const SearchResultsPage({super.key, required this.query, this.initialMode = SearchMode.all, this.searchService});
+
+  final String query;
+  final SearchMode initialMode;
+  final SearchService? searchService;
+
+  @override
+  State<SearchResultsPage> createState() => _SearchResultsPageState();
+}
+
+class _SearchResultsPageState extends State<SearchResultsPage> {
+  late final SearchService _service = widget.searchService ?? SearchService();
+  late SearchMode _mode = widget.initialMode;
+  SearchResponse? _response;
+  Object? _error;
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  @override
+  void dispose() {
+    if (widget.searchService == null) _service.close();
+    super.dispose();
+  }
+
+  Future<void> _load() async {
+    setState(() { _loading = true; _error = null; });
+    try {
+      final response = await _service.search(widget.query);
+      if (!mounted) return;
+      setState(() { _response = response; _loading = false; });
+    } catch (error) {
+      if (!mounted) return;
+      setState(() { _error = error; _loading = false; });
+    }
+  }
+
+  List<BookResult> get _visible => (_response?.results ?? []).where((item) => item.matches(_mode)).toList();
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: Text('Results for “${widget.query}”'), actions: [IconButton(onPressed: _load, tooltip: 'Retry search', icon: const Icon(Icons.refresh))]),
+      body: Column(children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+          child: SegmentedButton<SearchMode>(
+            segments: const [
+              ButtonSegment(value: SearchMode.all, label: Text('All'), icon: Icon(Icons.search)),
+              ButtonSegment(value: SearchMode.ebooks, label: Text('Ebooks'), icon: Icon(Icons.menu_book)),
+              ButtonSegment(value: SearchMode.audiobooks, label: Text('Audio'), icon: Icon(Icons.headphones)),
+            ],
+            selected: {_mode},
+            onSelectionChanged: (selection) => setState(() => _mode = selection.first),
+          ),
         ),
+        if (_loading) const LinearProgressIndicator(),
+        if (_response != null) Padding(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+          child: Row(children: [
+            Expanded(child: Text('${_visible.length} results · ${_response!.completedProviders} catalogues', style: const TextStyle(color: Colors.white70))),
+            if (_response!.failures.isNotEmpty) Text('${_response!.failures.length} unavailable', style: const TextStyle(color: Colors.orangeAccent)),
+          ]),
+        ),
+        if (_error != null) Padding(padding: const EdgeInsets.all(16), child: Text('Search failed: $_error', style: const TextStyle(color: Colors.redAccent))),
+        if (_response != null && _response!.failures.isNotEmpty) _failureSummary(_response!.failures),
+        Expanded(child: _loading
+            ? const Center(child: CircularProgressIndicator())
+            : _visible.isEmpty
+                ? _emptyState()
+                : ListView.builder(
+                    padding: const EdgeInsets.fromLTRB(12, 0, 12, 16),
+                    itemCount: _visible.length,
+                    itemBuilder: (context, index) => _resultCard(_visible[index]),
+                  )),
+      ]),
+    );
+  }
+
+  Widget _failureSummary(List<ProviderFailure> failures) {
+    return ExpansionTile(
+      dense: true,
+      title: const Text('Some catalogues could not respond', style: TextStyle(fontSize: 13)),
+      children: failures.map((failure) => ListTile(
+        dense: true,
+        title: Text(failure.provider),
+        subtitle: Text(failure.message, maxLines: 2, overflow: TextOverflow.ellipsis),
+      )).toList(),
+    );
+  }
+
+  Widget _emptyState() {
+    return Center(child: Padding(
+      padding: const EdgeInsets.all(28),
+      child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+        Icon(_mode == SearchMode.audiobooks ? Icons.headphones : Icons.search_off, size: 50, color: Colors.white38),
+        const SizedBox(height: 12),
+        const Text('No results found', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700)),
+        const SizedBox(height: 6),
+        const Text('Try another title or author. Some catalogues may also be temporarily unavailable.', textAlign: TextAlign.center, style: TextStyle(color: Colors.white60)),
+        const SizedBox(height: 12),
+        OutlinedButton.icon(onPressed: _load, icon: const Icon(Icons.refresh), label: const Text('Search again')),
+      ]),
+    ));
+  }
+
+  Widget _resultCard(BookResult item) {
+    final isAudio = item.format == BookFormat.audiobook;
+    return Card(
+      color: const Color(0xFF191E28),
+      margin: const EdgeInsets.only(bottom: 10),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          _cover(item.coverUrl, isAudio),
+          const SizedBox(width: 12),
+          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(item.title, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
+            if (item.authors.isNotEmpty) Padding(padding: const EdgeInsets.only(top: 4), child: Text(item.authors, style: const TextStyle(color: Colors.white60, fontSize: 12))),
+            const SizedBox(height: 8),
+            Wrap(spacing: 6, runSpacing: 6, children: [
+              _chip(isAudio ? 'Audiobook' : 'Ebook', isAudio ? const Color(0xFF54C6B3) : const Color(0xFFB5A9FF)),
+              _chip(item.source, Colors.white54),
+              if (item.year != null && item.year!.isNotEmpty) _chip(item.year!, Colors.white38),
+            ]),
+            if (item.accessLabel != null && item.accessLabel!.isNotEmpty) Padding(padding: const EdgeInsets.only(top: 6), child: Text(item.accessLabel!, style: const TextStyle(fontSize: 11, color: Colors.white54))),
+            if (item.description != null && item.description!.isNotEmpty) Padding(padding: const EdgeInsets.only(top: 7), child: Text(item.description!, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 12, color: Colors.white54))),
+            Align(alignment: Alignment.centerRight, child: TextButton.icon(
+              onPressed: () => _open(item.url),
+              icon: Icon(isAudio ? Icons.headphones : Icons.open_in_new, size: 16),
+              label: Text(isAudio ? 'Listen / open' : 'View edition'),
+            )),
+          ])),
+        ]),
       ),
     );
+  }
+
+  Widget _cover(String? url, bool audio) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(9),
+      child: SizedBox(width: 74, height: 106, child: url == null
+          ? Container(color: const Color(0xFF292E3A), child: Icon(audio ? Icons.headphones : Icons.menu_book, color: Colors.white38, size: 28))
+          : Image.network(url, fit: BoxFit.cover, errorBuilder: (_, __, ___) => Container(color: const Color(0xFF292E3A), child: Icon(audio ? Icons.headphones : Icons.menu_book, color: Colors.white38, size: 28)))),
+    );
+  }
+
+  Widget _chip(String label, Color color) => Container(
+    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+    decoration: BoxDecoration(color: color.withValues(alpha: .13), borderRadius: BorderRadius.circular(30)),
+    child: Text(label, style: TextStyle(fontSize: 10, color: color)),
+  );
+
+  Future<void> _open(String url) async {
+    final uri = Uri.tryParse(url);
+    if (uri == null || !(uri.scheme == 'https' || uri.scheme == 'http')) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('This result has an invalid link.')));
+      return;
+    }
+    final opened = await launchUrl(uri, mode: LaunchMode.externalApplication);
+    if (!opened && mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Could not open this link.')));
   }
 }
 
 class _SectionHeading extends StatelessWidget {
   const _SectionHeading({required this.title, required this.subtitle});
-
   final String title;
   final String subtitle;
-
   @override
-  Widget build(BuildContext context) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.end,
-      children: [
-        Expanded(child: Text(title, style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700))),
-        Text(subtitle, style: const TextStyle(color: Colors.white38, fontSize: 11)),
-      ],
-    );
-  }
+  Widget build(BuildContext context) => Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
+    Expanded(child: Text(title, style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700))),
+    Text(subtitle, style: const TextStyle(color: Colors.white38, fontSize: 11)),
+  ]);
 }
