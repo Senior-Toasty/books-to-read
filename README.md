@@ -183,3 +183,20 @@ A Flutter mobile app shell and Rust core are being developed alongside the exist
 - Tag a release `v*` to attach both platform builds to a GitHub Release
 
 The iOS artifact is unsigned and intended for build validation; installing it on a device requires Apple signing and distribution setup.
+
+
+## BookHunter mobile app (Stages 1–2)
+
+The Flutter app currently has a Discover screen, Library and Downloads navigation, and multi-source search for ebooks and audiobooks.
+
+### Search providers
+
+- Google Books
+- Open Library
+- Project Gutenberg (Gutendex)
+- Internet Archive (text and audio records)
+- LibriVox (audiobooks)
+
+Searches fan out concurrently; individual provider failures are surfaced without discarding other results. Results include catalogue/source links, covers where available, format labels, and basic access notes. The app does not claim a catalogue record is a free downloadable file; availability and rights must be verified at the source.
+
+Search currently runs in Flutter/Dart networking. Rust core remains the shared engine foundation and is planned to receive the provider and matching layer as mobile FFI is introduced.
