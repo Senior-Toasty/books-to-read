@@ -1,8 +1,6 @@
 // ignore_for_file: deprecated_member_use
 import 'package:flutter/material.dart';
 import 'package:bookhunter/changelog_page.dart';
-import 'package:bookhunter/downloads/download_store.dart';
-import 'package:bookhunter/reader/book_reader_page.dart';
 import 'package:bookhunter/search/book_result.dart';
 import 'package:bookhunter/search/search_service.dart';
 import 'package:bookhunter/library/library_store.dart';
@@ -56,7 +54,6 @@ class _HomeScreenState extends State<HomeScreen> {
   void initState() {
     super.initState();
     LibraryStore.load();
-    DownloadStore.load();
   }
 
   @override
@@ -99,39 +96,21 @@ class _HomeScreenState extends State<HomeScreen> {
 
 
   Widget _downloadsPage() {
-    return AnimatedBuilder(
-      animation: Listenable.merge([DownloadStore.items, DownloadStore.queue]),
-      builder: (context, _) {
-        final books = DownloadStore.items.value;
-        final tasks = DownloadStore.queue.value.where((t) => t.status != DownloadStatus.completed).toList();
-        final active = tasks.any((t) => t.status == DownloadStatus.queued || t.status == DownloadStatus.downloading || t.status == DownloadStatus.paused);
-        return ListView(padding: const EdgeInsets.fromLTRB(16,20,16,24), children: [
-          const Text('Downloads',style:TextStyle(fontSize:26,fontWeight:FontWeight.w800)),
-          const SizedBox(height:5),
-          Text('${books.length} files stored on this device',style:const TextStyle(color:Colors.white60)),
-          if(tasks.isNotEmpty) ...[
-            const SizedBox(height:18),
-            Row(children:[const Expanded(child:Text('Download queue',style:TextStyle(fontSize:18,fontWeight:FontWeight.w700))),TextButton.icon(onPressed:active?DownloadStore.pause:DownloadStore.resume,icon:Icon(active?Icons.pause:Icons.play_arrow),label:Text(active?'Pause':'Resume all'))]),
-            for(final task in tasks) Card(color:const Color(0xFF191E28),child:Padding(padding:const EdgeInsets.all(12),child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
-              Text(task.title,style:const TextStyle(fontWeight:FontWeight.w700)),
-              const SizedBox(height:5),
-              Text('${task.source} · ${task.status.name}',style:const TextStyle(color:Colors.white60,fontSize:12)),
-              if(task.status==DownloadStatus.downloading||task.status==DownloadStatus.queued||task.status==DownloadStatus.paused) ...[
-                const SizedBox(height:8),LinearProgressIndicator(value:task.total>0?task.progress:null),
-                if(task.total>0) Text('${(task.received/1048576).toStringAsFixed(1)} / ${(task.total/1048576).toStringAsFixed(1)} MB',style:const TextStyle(color:Colors.white54,fontSize:11)),
-              ],
-              if(task.error!=null) Text(task.error!,style:const TextStyle(color:Colors.orangeAccent,fontSize:11)),
-              Row(mainAxisAlignment:MainAxisAlignment.end,children:[
-                if(task.status==DownloadStatus.failed) TextButton(onPressed:()=>DownloadStore.retry(task.id),child:const Text('Retry')),
-                IconButton(onPressed:()=>DownloadStore.removeTask(task.id),tooltip:'Remove from queue',icon:const Icon(Icons.close)),
-              ]),
-            ]))),
-          ],
-          const SizedBox(height:12),
-          if(books.isEmpty) const Padding(padding:EdgeInsets.symmetric(vertical:36),child:Column(children:[Icon(Icons.download_for_offline_outlined,size:52,color:Color(0xFFB5A9FF)),SizedBox(height:14),Text('Nothing downloaded yet',style:TextStyle(fontSize:18,fontWeight:FontWeight.w700)),SizedBox(height:6),Text('Add supported public-domain ebooks to the queue and they will download automatically.',textAlign:TextAlign.center,style:TextStyle(color:Colors.white60))])),
-          for(final book in books) Card(color:const Color(0xFF191E28),child:ListTile(leading:const Icon(Icons.menu_book_rounded,color:Color(0xFFB5A9FF)),title:Text(book.title,maxLines:2,overflow:TextOverflow.ellipsis),subtitle:Text('${book.source} · ${(book.bytes/1048576).toStringAsFixed(1)} MB'),onTap:()=>Navigator.of(context).push(MaterialPageRoute(builder:(_)=>BookReaderPage(path:book.path,title:book.title))),trailing:IconButton(tooltip:'Delete downloaded file',icon:const Icon(Icons.delete_outline),onPressed:()=>DownloadStore.remove(book)))),
-        ]);
-      },
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(20, 24, 20, 28),
+      children: const [
+        Text('Downloads', style: TextStyle(fontSize: 26, fontWeight: FontWeight.w800)),
+        SizedBox(height: 22),
+        Center(child: Icon(Icons.download_for_offline_outlined, size: 58, color: Color(0xFFB5A9FF))),
+        SizedBox(height: 16),
+        Text('Download books manually', textAlign: TextAlign.center, style: TextStyle(fontSize: 19, fontWeight: FontWeight.w700)),
+        SizedBox(height: 8),
+        Text(
+          'Tap Download on a book to open its file in your browser. Your browser or Android will handle the download. For catalogue results, tap Open source and choose an available file on the publisher or library website. Find completed files in your phone’s Downloads folder.',
+          textAlign: TextAlign.center,
+          style: TextStyle(color: Colors.white60, height: 1.5),
+        ),
+      ],
     );
   }
 
