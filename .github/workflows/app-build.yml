@@ -11,8 +11,6 @@ on:
       - "rust-core/**"
       - ".github/workflows/app-build.yml"
   workflow_dispatch:
-  push_tags:
-    - "v*"
 
 permissions:
   contents: read
