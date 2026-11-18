@@ -150,7 +150,7 @@ class _HomeScreenState extends State<HomeScreen> {
               Icon(Icons.travel_explore_rounded, size: 26, color: Color(0xFFB5A9FF)),
               SizedBox(width: 12),
               Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text('Search five catalogues at once', style: TextStyle(fontWeight: FontWeight.w700)),
+                Text('Search fourteen catalogues at once', style: TextStyle(fontWeight: FontWeight.w700)),
                 SizedBox(height: 5),
                 Text('Google Books, Open Library, Gutenberg, Internet Archive, and LibriVox. Results are gathered in parallel.', style: TextStyle(color: Colors.white60, height: 1.4)),
               ])),
