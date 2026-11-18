@@ -3,11 +3,17 @@ import 'package:flutter/material.dart';
 class ChangelogPage extends StatelessWidget {
   const ChangelogPage({super.key});
   static const entries = [
+    ('0.4.0', 'November 2026', [
+      'Download supported ebooks and audiobooks directly inside Readiculous.',
+      'Keep downloaded files in your Library for offline access.',
+      'Download queue shows progress and errors.',
+      'Read ebooks in the built-in reader; open audio files with a compatible player.',
+      'Restored a visible app logo using a generated PNG asset.',
+    ]),
     ('0.3.0', 'November 2026', [
-      'Automatic download queue with progress, pause, resume and retry.',
       'New in-app changelog.',
       'Readiculous branding and refreshed app icon.',
-      'Offline downloads for supported Project Gutenberg ebooks.',
+      'Initial offline ebook downloads.',
     ]),
     ('0.2.0', 'November 2026', [
       'Saved library and downloads shelf.',
