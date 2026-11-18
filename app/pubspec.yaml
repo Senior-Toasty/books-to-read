@@ -18,6 +18,10 @@ dependencies:
   epub_view: ^3.3.0
   pdfx: ^2.11.0
 
+dependency_overrides:
+  # flutter_html 3.0.0 still uses a private selector API removed in html 0.15.7.
+  html: 0.15.6
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
