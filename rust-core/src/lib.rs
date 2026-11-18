@@ -26,8 +26,7 @@ impl SearchRequest {
 
     /// Reject an empty query before a provider request is attempted.
     pub fn is_valid(&self) -> bool {
-        !self.query.is_empty()
-            && (self.include_ebooks || self.include_audiobooks)
+        !self.query.is_empty() && (self.include_ebooks || self.include_audiobooks)
     }
 }
 
