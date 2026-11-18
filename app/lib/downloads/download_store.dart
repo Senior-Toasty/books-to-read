@@ -150,7 +150,7 @@ class DownloadStore {
         return score(left).compareTo(score(right));
       });
       final name = candidates.first['name'].toString();
-      return Uri.https('archive.org', '/download/$identifier/${Uri.encodeComponent(name)}');
+      return Uri.https('archive.org', '/download/$identifier/$name');
     }
     return _validateOrResolveUri(raw);
   }
