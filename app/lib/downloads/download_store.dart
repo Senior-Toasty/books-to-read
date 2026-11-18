@@ -36,6 +36,7 @@ class DownloadStore {
   static final ValueNotifier<List<DownloadedBook>> items=ValueNotifier([]);
   static final ValueNotifier<List<DownloadTask>> queue=ValueNotifier([]);
   static bool _loaded=false, _running=false, _paused=false;
+  static Completer<void>? _pauseGate;
   static Future<void> load() async {
     if(_loaded)return;
     final p=await SharedPreferences.getInstance();
@@ -65,10 +66,12 @@ class DownloadStore {
   }
 
   static Future<void> download(BookResult book)=>enqueue(book);
-  static Future<void> pause() async { _paused=true; queue.value=queue.value.map((t)=>t.status==DownloadStatus.queued?t.copyWith(status:DownloadStatus.paused):t).toList(); await _persist(); }
+  static Future<void> pause() async { _paused=true; _pauseGate=Completer<void>(); queue.value=queue.value.map((t)=>(t.status==DownloadStatus.queued||t.status==DownloadStatus.downloading)?t.copyWith(status:DownloadStatus.paused):t).toList(); await _persist(); }
   static Future<void> resume() async {
     await load();
     _paused=false;
+    if(_pauseGate!=null&&!_pauseGate!.isCompleted)_pauseGate!.complete();
+    _pauseGate=null;
     queue.value=queue.value.map((t)=>t.status==DownloadStatus.paused?t.copyWith(status:DownloadStatus.queued):t).toList();
     await _persist();
     if(_running)return;
@@ -109,6 +112,9 @@ class DownloadStore {
       final sink=file.openWrite(); var bytes=0;
       try {
         await for(final chunk in response.timeout(const Duration(seconds:60))) {
+          if(_paused) { _setTask(task.id,task.copyWith(status:DownloadStatus.paused,received:bytes,total:total)); await _pauseGate?.future; }
+          if(_paused) break;
+          _setTask(task.id,task.copyWith(status:DownloadStatus.downloading,received:bytes,total:total));
           bytes+=chunk.length;
           if(bytes>100*1024*1024)throw HttpException('File exceeds 100 MB limit');
           sink.add(chunk);
@@ -116,6 +122,7 @@ class DownloadStore {
         }
         await sink.flush();
       } finally { await sink.close(); }
+      if(_paused) { if(await file.exists())await file.delete(); return; }
       if(bytes==0)throw HttpException('The source returned an empty file');
       items.value=[...items.value,DownloadedBook(title:task.title,source:task.source,path:file.path,bytes:bytes)];
       _setTask(task.id,task.copyWith(status:DownloadStatus.completed,received:bytes,total:bytes));
