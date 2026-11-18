@@ -1091,67 +1091,67 @@ async fn search_source(
     let _rate_guard = match source {
         Source::GoogleBooks => {
             let permit = gates.google_books.clone().acquire_owned().await?;
-            sleep(Duration::from_millis(3500)).await;
+            sleep(Duration::from_millis(900)).await;
             Some(permit)
         }
         Source::OpenLibrary => {
             let permit = gates.open_library.clone().acquire_owned().await?;
-            sleep(Duration::from_millis(1100)).await;
+            sleep(Duration::from_millis(350)).await;
             Some(permit)
         }
         Source::InternetArchive => {
             let permit = gates.internet_archive.clone().acquire_owned().await?;
-            sleep(Duration::from_millis(750)).await;
+            sleep(Duration::from_millis(300)).await;
             Some(permit)
         }
         Source::Gutenberg => {
             let permit = gates.gutenberg.clone().acquire_owned().await?;
-            sleep(Duration::from_millis(1100)).await;
+            sleep(Duration::from_millis(350)).await;
             Some(permit)
         }
         Source::Loc => {
             let permit = gates.loc.clone().acquire_owned().await?;
-            sleep(Duration::from_millis(4500)).await;
+            sleep(Duration::from_millis(1100)).await;
             Some(permit)
         }
         Source::Wikisource => {
             let permit = gates.wikisource.clone().acquire_owned().await?;
-            sleep(Duration::from_millis(1100)).await;
+            sleep(Duration::from_millis(350)).await;
             Some(permit)
         }
         Source::OpenAlex => {
             let permit = gates.openalex.clone().acquire_owned().await?;
-            sleep(Duration::from_millis(1200)).await;
+            sleep(Duration::from_millis(350)).await;
             Some(permit)
         }
         Source::Oapen => {
             let permit = gates.oapen.clone().acquire_owned().await?;
-            sleep(Duration::from_millis(1200)).await;
+            sleep(Duration::from_millis(350)).await;
             Some(permit)
         }
         Source::OpenAire => {
             let permit = gates.openaire.clone().acquire_owned().await?;
-            sleep(Duration::from_millis(1200)).await;
+            sleep(Duration::from_millis(350)).await;
             Some(permit)
         }
         Source::Crossref => {
             let permit = gates.crossref.clone().acquire_owned().await?;
-            sleep(Duration::from_millis(1200)).await;
+            sleep(Duration::from_millis(350)).await;
             Some(permit)
         }
         Source::Wikidata => {
             let permit = gates.wikidata.clone().acquire_owned().await?;
-            sleep(Duration::from_millis(1200)).await;
+            sleep(Duration::from_millis(350)).await;
             Some(permit)
         }
         Source::Doab => {
             let permit = gates.doab.clone().acquire_owned().await?;
-            sleep(Duration::from_millis(1200)).await;
+            sleep(Duration::from_millis(350)).await;
             Some(permit)
         }
         Source::Zenodo => {
             let permit = gates.zenodo.clone().acquire_owned().await?;
-            sleep(Duration::from_millis(1200)).await;
+            sleep(Duration::from_millis(350)).await;
             Some(permit)
         }
     };
