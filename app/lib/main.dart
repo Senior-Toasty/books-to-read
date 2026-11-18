@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 import 'package:bookhunter/search/book_result.dart';
 import 'package:bookhunter/search/search_service.dart';
+import 'package:bookhunter/library/library_store.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 void main() => runApp(const BookHunterApp());
@@ -49,6 +50,12 @@ class _HomeScreenState extends State<HomeScreen> {
   final _searchController = TextEditingController();
 
   @override
+  void initState() {
+    super.initState();
+    LibraryStore.load();
+  }
+
+  @override
   void dispose() {
     _searchController.dispose();
     super.dispose();
@@ -69,8 +76,7 @@ class _HomeScreenState extends State<HomeScreen> {
           index: _selectedTab,
           children: [
             _discoverPage(),
-            _placeholderPage(Icons.library_books_rounded, 'Your library',
-                'Your saved books and audiobooks will live here.'),
+            _libraryPage(),
             _placeholderPage(Icons.download_rounded, 'Downloads',
                 'Download queues and offline files arrive in Stage 3.'),
           ],
@@ -85,6 +91,46 @@ class _HomeScreenState extends State<HomeScreen> {
           NavigationDestination(icon: Icon(Icons.download_outlined), selectedIcon: Icon(Icons.download), label: 'Downloads'),
         ],
       ),
+    );
+  }
+
+  Widget _libraryPage() {
+    return AnimatedBuilder(
+      animation: LibraryStore.items,
+      builder: (context, _) {
+        final books = LibraryStore.items.value;
+        if (books.isEmpty) {
+          return _placeholderPage(Icons.library_books_rounded, 'Your library',
+              'Save books from search results and they will stay here on this device.');
+        }
+        return ListView(
+          padding: const EdgeInsets.fromLTRB(16, 20, 16, 24),
+          children: [
+            const Text('Your library', style: TextStyle(fontSize: 26, fontWeight: FontWeight.w800)),
+            const SizedBox(height: 5),
+            Text('${books.length} saved items', style: const TextStyle(color: Colors.white60)),
+            const SizedBox(height: 14),
+            for (final book in books)
+              Card(
+                color: const Color(0xFF191E28),
+                child: ListTile(
+                  leading: const Icon(Icons.bookmark, color: Color(0xFFB5A9FF)),
+                  title: Text(book.title, maxLines: 2, overflow: TextOverflow.ellipsis),
+                  subtitle: Text('${book.authors.isEmpty ? book.source : book.authors} · ${book.source}', maxLines: 2),
+                  trailing: IconButton(
+                    tooltip: 'Remove from library',
+                    icon: const Icon(Icons.delete_outline),
+                    onPressed: () => LibraryStore.remove(book),
+                  ),
+                  onTap: () async {
+                    final uri = Uri.tryParse(book.url);
+                    if (uri != null) await launchUrl(uri, mode: LaunchMode.externalApplication);
+                  },
+                ),
+              ),
+          ],
+        );
+      },
     );
   }
 
@@ -303,7 +349,29 @@ class _SearchResultsPageState extends State<SearchResultsPage> {
   }
 
   Widget _failureSummary(List<ProviderFailure> failures) {
-    return ExpansionTile(
+    final dnsFailure = failures.length == 14 &&
+        failures.every((failure) => failure.message.toLowerCase().contains('failed host lookup') ||
+            failure.message.toLowerCase().contains('socketexception'));
+    return Column(children: [
+      if (dnsFailure)
+        Container(
+          margin: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: Colors.orange.withValues(alpha: .12),
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: Colors.orangeAccent.withValues(alpha: .35)),
+          ),
+          child: const Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Icon(Icons.wifi_off_rounded, color: Colors.orangeAccent),
+            SizedBox(width: 10),
+            Expanded(child: Text(
+              'Your phone could not resolve catalogue addresses (DNS). Check Wi-Fi or mobile data, airplane mode, VPN or Private DNS, then tap refresh.',
+              style: TextStyle(fontSize: 12, height: 1.4),
+            )),
+          ]),
+        ),
+      ExpansionTile(
       dense: true,
       title: const Text('Some catalogues could not respond', style: TextStyle(fontSize: 13)),
       children: failures.map((failure) => ListTile(
@@ -311,7 +379,8 @@ class _SearchResultsPageState extends State<SearchResultsPage> {
         title: Text(failure.provider),
         subtitle: Text(failure.message, maxLines: 2, overflow: TextOverflow.ellipsis),
       )).toList(),
-    );
+      ),
+    ]);
   }
 
   Widget _emptyState() {
@@ -351,11 +420,23 @@ class _SearchResultsPageState extends State<SearchResultsPage> {
             ]),
             if (item.accessLabel != null && item.accessLabel!.isNotEmpty) Padding(padding: const EdgeInsets.only(top: 6), child: Text(item.accessLabel!, style: const TextStyle(fontSize: 11, color: Colors.white54))),
             if (item.description != null && item.description!.isNotEmpty) Padding(padding: const EdgeInsets.only(top: 7), child: Text(item.description!, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 12, color: Colors.white54))),
-            Align(alignment: Alignment.centerRight, child: TextButton.icon(
-              onPressed: () => _open(item.url),
-              icon: Icon(isAudio ? Icons.headphones : Icons.open_in_new, size: 16),
-              label: Text(isAudio ? 'Listen / open' : 'View edition'),
-            )),
+            Row(mainAxisAlignment: MainAxisAlignment.end, children: [
+              IconButton(
+                tooltip: 'Save to library',
+                onPressed: () async {
+                  await LibraryStore.save(item);
+                  if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Saved to your library on this device.')),
+                  );
+                },
+                icon: const Icon(Icons.bookmark_add_outlined, color: Color(0xFFB5A9FF)),
+              ),
+              TextButton.icon(
+                onPressed: () => _open(item.url),
+                icon: Icon(isAudio ? Icons.headphones : Icons.open_in_new, size: 16),
+                label: Text(isAudio ? 'Listen / open' : 'View edition'),
+              ),
+            ]),
           ])),
         ]),
       ),
