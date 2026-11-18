@@ -1,12 +1,10 @@
 // ignore_for_file: deprecated_member_use
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import 'package:bookhunter/changelog_page.dart';
 import 'package:bookhunter/reader/book_reader_page.dart';
 import 'package:bookhunter/search/book_result.dart';
 import 'package:bookhunter/search/search_service.dart';
 import 'package:bookhunter/library/library_store.dart';
-import 'package:bookhunter/downloads/download_store.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 void main() => runApp(const ReadiculousApp());
@@ -182,7 +180,7 @@ class _HomeScreenState extends State<HomeScreen> {
       children: [
         Row(
           children: [
-            ClipRRect(borderRadius: BorderRadius.circular(15), child: SvgPicture.asset('assets/readiculous_icon.svg', width: 46, height: 46)),
+            ClipRRect(borderRadius: BorderRadius.circular(15), child: Image.asset('assets/readiculous_icon.jpg', width: 46, height: 46, fit: BoxFit.cover)),
             const SizedBox(width: 12),
             const Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -455,23 +453,24 @@ class _SearchResultsPageState extends State<SearchResultsPage> {
             if (item.accessLabel != null && item.accessLabel!.isNotEmpty) Padding(padding: const EdgeInsets.only(top: 6), child: Text(item.accessLabel!, style: const TextStyle(fontSize: 11, color: Colors.white54))),
             if (item.description != null && item.description!.isNotEmpty) Padding(padding: const EdgeInsets.only(top: 7), child: Text(item.description!, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 12, color: Colors.white54))),
             Row(mainAxisAlignment: MainAxisAlignment.end, children: [
-              if (item.downloadUrl != null && item.accessLabel == 'Public-domain ebook')
-                IconButton(
-                  tooltip: 'Download for offline use',
-                  onPressed: () async {
-                    try {
-                      await DownloadStore.download(item);
-                      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Added to the download queue. Check Downloads for progress.')),
-                      );
-                    } catch (error) {
-                      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('Download failed: $error')),
-                      );
-                    }
-                  },
-                  icon: const Icon(Icons.download_for_offline_outlined, color: Color(0xFF54C6B3)),
-                ),
+              TextButton.icon(
+                onPressed: () async {
+                  final target = item.downloadUrl ?? item.url;
+                  final uri = Uri.tryParse(target);
+                  if (uri == null || !uri.hasScheme) {
+                    if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('This source does not provide a usable download link.')),
+                    );
+                    return;
+                  }
+                  final opened = await launchUrl(uri, mode: LaunchMode.externalApplication);
+                  if (!opened && mounted) ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Could not open the book source.')),
+                  );
+                },
+                icon: const Icon(Icons.download_rounded, size: 18),
+                label: Text(item.downloadUrl != null ? 'Download' : 'Open source'),
+              ),
               IconButton(
                 tooltip: 'Save to library',
                 onPressed: () async {
