@@ -163,7 +163,7 @@ class DownloadStore {
       request.maxRedirects=5;
       request.headers.set(HttpHeaders.acceptHeader,'application/epub+zip, application/pdf, audio/*, application/zip, text/plain, application/octet-stream;q=0.9, */*;q=0.5');
       final response=await request.close().timeout(const Duration(seconds:60));
-      _validateHost(response.redirects.isEmpty?response.uri:response.redirects.last.location);
+      _validateHost(response.uri);
       if(response.statusCode<200||response.statusCode>=300) throw HttpException('The book server returned HTTP ${response.statusCode}.');
       final mime=response.headers.contentType?.mimeType.toLowerCase()??'';
       if(mime=='text/html'||mime=='application/json'||mime.contains('html')) throw HttpException('The source returned a webpage instead of a book or audio file.');
