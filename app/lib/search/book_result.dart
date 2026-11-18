@@ -13,6 +13,7 @@ class BookResult {
     this.coverUrl,
     this.description,
     this.accessLabel,
+    this.downloadUrl,
   });
 
   final String title;
@@ -24,6 +25,7 @@ class BookResult {
   final String? coverUrl;
   final String? description;
   final String? accessLabel;
+  final String? downloadUrl;
 
   String get dedupeKey =>
       '${title.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '')}|'
@@ -33,7 +35,7 @@ class BookResult {
   Map<String, dynamic> toJson() => {
         'title': title, 'authors': authors, 'source': source, 'url': url,
         'format': format.name, 'year': year, 'coverUrl': coverUrl,
-        'description': description, 'accessLabel': accessLabel,
+        'description': description, 'accessLabel': accessLabel, 'downloadUrl': downloadUrl,
       };
 
   factory BookResult.fromJson(Map<String, dynamic> json) => BookResult(
@@ -49,6 +51,7 @@ class BookResult {
         coverUrl: json['coverUrl']?.toString(),
         description: json['description']?.toString(),
         accessLabel: json['accessLabel']?.toString(),
+        downloadUrl: json['downloadUrl']?.toString(),
       );
 
   bool matches(SearchMode mode) => switch (mode) {
