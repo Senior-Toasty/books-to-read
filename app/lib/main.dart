@@ -4,6 +4,9 @@ import 'package:bookhunter/changelog_page.dart';
 import 'package:bookhunter/search/book_result.dart';
 import 'package:bookhunter/search/search_service.dart';
 import 'package:bookhunter/library/library_store.dart';
+import 'package:bookhunter/downloads/download_store.dart';
+import 'package:bookhunter/reader/book_reader_page.dart';
+import 'package:open_filex/open_filex.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 void main() => runApp(const ReadiculousApp());
@@ -54,6 +57,7 @@ class _HomeScreenState extends State<HomeScreen> {
   void initState() {
     super.initState();
     LibraryStore.load();
+    DownloadStore.load();
   }
 
   @override
@@ -96,58 +100,139 @@ class _HomeScreenState extends State<HomeScreen> {
 
 
   Widget _downloadsPage() {
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(20, 24, 20, 28),
-      children: const [
-        Text('Downloads', style: TextStyle(fontSize: 26, fontWeight: FontWeight.w800)),
-        SizedBox(height: 22),
-        Center(child: Icon(Icons.download_for_offline_outlined, size: 58, color: Color(0xFFB5A9FF))),
-        SizedBox(height: 16),
-        Text('Download books manually', textAlign: TextAlign.center, style: TextStyle(fontSize: 19, fontWeight: FontWeight.w700)),
-        SizedBox(height: 8),
-        Text(
-          'Tap Download on a book to open its file in your browser. Your browser or Android will handle the download. For catalogue results, tap Open source and choose an available file on the publisher or library website. Find completed files in your phone’s Downloads folder.',
-          textAlign: TextAlign.center,
-          style: TextStyle(color: Colors.white60, height: 1.5),
-        ),
-      ],
+    return AnimatedBuilder(
+      animation: Listenable.merge([DownloadStore.items, DownloadStore.queue]),
+      builder: (context, _) {
+        final files = DownloadStore.items.value;
+        final tasks = DownloadStore.queue.value;
+        return ListView(
+          padding: const EdgeInsets.fromLTRB(16, 20, 16, 28),
+          children: [
+            const Text('Downloads', style: TextStyle(fontSize: 26, fontWeight: FontWeight.w800)),
+            const SizedBox(height: 6),
+            const Text('Files are saved on this device for offline access.', style: TextStyle(color: Colors.white60)),
+            if (tasks.isNotEmpty) ...[
+              const SizedBox(height: 20),
+              const Text('Download queue', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700)),
+              for (final task in tasks)
+                Card(
+                  color: const Color(0xFF191E28),
+                  child: Padding(
+                    padding: const EdgeInsets.all(12),
+                    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                      Text(task.title, style: const TextStyle(fontWeight: FontWeight.w600)),
+                      const SizedBox(height: 6),
+                      Text(task.status == DownloadStatus.failed ? 'Failed: ${task.error ?? 'Unknown error'}' : task.status.name, style: const TextStyle(color: Colors.white60, fontSize: 12)),
+                      if (task.status == DownloadStatus.downloading) ...[
+                        const SizedBox(height: 8),
+                        LinearProgressIndicator(value: task.total > 0 ? task.progress : null),
+                        Text(task.total > 0 ? '${(task.progress * 100).toStringAsFixed(0)}%' : 'Downloading…', style: const TextStyle(fontSize: 11, color: Colors.white54)),
+                      ],
+                      Row(mainAxisAlignment: MainAxisAlignment.end, children: [
+                        if (task.status == DownloadStatus.failed)
+                          TextButton(onPressed: () => DownloadStore.retry(task.id), child: const Text('Retry')),
+                        TextButton(onPressed: () => DownloadStore.removeTask(task.id), child: const Text('Remove')),
+                      ]),
+                    ]),
+                  ),
+                ),
+            ],
+            const SizedBox(height: 18),
+            Text('Downloaded files · ${files.length}', style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700)),
+            if (files.isEmpty)
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 30),
+                child: Center(child: Text('Your downloaded books and audiobooks will appear here.', textAlign: TextAlign.center, style: TextStyle(color: Colors.white54))),
+              ),
+            for (final file in files)
+              Card(
+                color: const Color(0xFF191E28),
+                child: ListTile(
+                  leading: Icon(file.isAudio ? Icons.headphones : Icons.menu_book, color: const Color(0xFFB5A9FF)),
+                  title: Text(file.title, maxLines: 2, overflow: TextOverflow.ellipsis),
+                  subtitle: Text('${file.source} · ${(file.bytes / (1024 * 1024)).toStringAsFixed(1)} MB'),
+                  onTap: () => _openDownloaded(file),
+                  trailing: IconButton(
+                    tooltip: 'Delete download',
+                    icon: const Icon(Icons.delete_outline),
+                    onPressed: () => DownloadStore.remove(file),
+                  ),
+                ),
+              ),
+          ],
+        );
+      },
     );
+  }
+
+  Future<void> _openDownloaded(DownloadedBook book) async {
+    final extension = book.extension;
+    if (const {'epub', 'pdf', 'txt'}.contains(extension)) {
+      await Navigator.of(context).push(MaterialPageRoute(
+        builder: (_) => BookReaderPage(path: book.path, title: book.title),
+      ));
+    } else {
+      await OpenFilex.open(book.path);
+    }
   }
 
   Widget _libraryPage() {
     return AnimatedBuilder(
-      animation: LibraryStore.items,
+      animation: Listenable.merge([LibraryStore.items, DownloadStore.items]),
       builder: (context, _) {
         final books = LibraryStore.items.value;
-        if (books.isEmpty) {
+        final downloads = DownloadStore.items.value;
+        if (books.isEmpty && downloads.isEmpty) {
           return _placeholderPage(Icons.library_books_rounded, 'Your library',
-              'Save books from search results and they will stay here on this device.');
+              'Save a title or download a book. Downloaded files stay here on this device.');
         }
         return ListView(
           padding: const EdgeInsets.fromLTRB(16, 20, 16, 24),
           children: [
             const Text('Your library', style: TextStyle(fontSize: 26, fontWeight: FontWeight.w800)),
             const SizedBox(height: 5),
-            Text('${books.length} saved items', style: const TextStyle(color: Colors.white60)),
-            const SizedBox(height: 14),
-            for (final book in books)
-              Card(
-                color: const Color(0xFF191E28),
-                child: ListTile(
-                  leading: const Icon(Icons.bookmark, color: Color(0xFFB5A9FF)),
-                  title: Text(book.title, maxLines: 2, overflow: TextOverflow.ellipsis),
-                  subtitle: Text('${book.authors.isEmpty ? book.source : book.authors} · ${book.source}', maxLines: 2),
-                  trailing: IconButton(
-                    tooltip: 'Remove from library',
-                    icon: const Icon(Icons.delete_outline),
-                    onPressed: () => LibraryStore.remove(book),
+            Text('${books.length + downloads.length} items · ${downloads.length} downloaded', style: const TextStyle(color: Colors.white60)),
+            if (downloads.isNotEmpty) ...[
+              const SizedBox(height: 18),
+              const Text('Available offline', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700)),
+              for (final file in downloads)
+                Card(
+                  color: const Color(0xFF191E28),
+                  child: ListTile(
+                    leading: Icon(file.isAudio ? Icons.headphones : Icons.menu_book, color: const Color(0xFFB5A9FF)),
+                    title: Text(file.title, maxLines: 2, overflow: TextOverflow.ellipsis),
+                    subtitle: Text('${file.source} · Downloaded'),
+                    onTap: () => _openDownloaded(file),
+                    trailing: IconButton(
+                      tooltip: 'Delete download',
+                      icon: const Icon(Icons.delete_outline),
+                      onPressed: () => DownloadStore.remove(file),
+                    ),
                   ),
-                  onTap: () async {
-                    final uri = Uri.tryParse(book.url);
-                    if (uri != null) await launchUrl(uri, mode: LaunchMode.externalApplication);
-                  },
                 ),
-              ),
+            ],
+            if (books.isNotEmpty) ...[
+              const SizedBox(height: 18),
+              const Text('Saved titles', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700)),
+              for (final book in books)
+                Card(
+                  color: const Color(0xFF191E28),
+                  child: ListTile(
+                    leading: const Icon(Icons.bookmark, color: Color(0xFFB5A9FF)),
+                    title: Text(book.title, maxLines: 2, overflow: TextOverflow.ellipsis),
+                    subtitle: Text('${book.authors.isEmpty ? book.source : book.authors} · ${book.source}', maxLines: 2),
+                    trailing: IconButton(
+                      tooltip: 'Remove from library',
+                      icon: const Icon(Icons.delete_outline),
+                      onPressed: () => LibraryStore.remove(book),
+                    ),
+                    onTap: () async {
+                      final uri = Uri.tryParse(book.url);
+                      if (uri != null) await launchUrl(uri, mode: LaunchMode.externalApplication);
+                    },
+                  ),
+                ),
+            ],
           ],
         );
       },
@@ -161,7 +246,7 @@ class _HomeScreenState extends State<HomeScreen> {
         Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Image.asset('assets/readiculous_icon.jpg', width: 88, height: 88, fit: BoxFit.contain),
+            Image.asset('assets/readiculous_icon.png', width: 104, height: 104, fit: BoxFit.contain, errorBuilder: (_, __, ___) => const Icon(Icons.auto_stories_rounded, size: 72, color: Color(0xFFB5A9FF))),
             const SizedBox(height: 10),
             const Text('READICULOUS', style: TextStyle(letterSpacing: 2, fontSize: 11, fontWeight: FontWeight.w700, color: Color(0xFFB5A9FF))),
             const Text('Find your next obsession', style: TextStyle(fontSize: 19, fontWeight: FontWeight.w700)),
@@ -435,24 +520,28 @@ class _SearchResultsPageState extends State<SearchResultsPage> {
             if (item.accessLabel != null && item.accessLabel!.isNotEmpty) Padding(padding: const EdgeInsets.only(top: 6), child: Text(item.accessLabel!, style: const TextStyle(fontSize: 11, color: Colors.white54))),
             if (item.description != null && item.description!.isNotEmpty) Padding(padding: const EdgeInsets.only(top: 7), child: Text(item.description!, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 12, color: Colors.white54))),
             Row(mainAxisAlignment: MainAxisAlignment.end, children: [
-              TextButton.icon(
-                onPressed: () async {
-                  final target = item.downloadUrl ?? item.url;
-                  final uri = Uri.tryParse(target);
-                  if (uri == null || !uri.hasScheme) {
-                    if (mounted) ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('This source does not provide a usable download link.')),
-                    );
-                    return;
-                  }
-                  final opened = await launchUrl(uri, mode: LaunchMode.externalApplication);
-                  if (!opened && mounted) ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Could not open the book source.')),
-                  );
-                },
-                icon: const Icon(Icons.download_rounded, size: 18),
-                label: Text(item.downloadUrl != null ? 'Download' : 'Open source'),
-              ),
+              if (item.downloadUrl != null && item.format != BookFormat.catalogue)
+                TextButton.icon(
+                  onPressed: () async {
+                    try {
+                      await DownloadStore.enqueue(item);
+                      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Download started. It will appear in your Library when complete.')),
+                      );
+                    } catch (error) {
+                      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('Could not download this item: $error')),
+                      );
+                    }
+                  },
+                  icon: const Icon(Icons.download_rounded, size: 18),
+                  label: const Text('Download'),
+                )
+              else
+                const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 8),
+                  child: Text('No file', style: TextStyle(color: Colors.white38, fontSize: 12)),
+                ),
               IconButton(
                 tooltip: 'Save to library',
                 onPressed: () async {
