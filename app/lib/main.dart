@@ -1,4 +1,4 @@
-// ignore: deprecated_member_use
+// ignore_for_file: deprecated_member_use
 // Keep the classic Material API while the Flutter SDK's new material_ui migration settles.
 import 'package:flutter/material.dart';
 
