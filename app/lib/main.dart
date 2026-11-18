@@ -7,15 +7,15 @@ import 'package:bookhunter/downloads/download_store.dart';
 import 'package:open_filex/open_filex.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-void main() => runApp(const BookHunterApp());
+void main() => runApp(const ReadiculousApp());
 
-class BookHunterApp extends StatelessWidget {
-  const BookHunterApp({super.key});
+class ReadiculousApp extends StatelessWidget {
+  const ReadiculousApp({super.key});
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'BookHunter',
+      title: 'Readiculous',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         useMaterial3: true,
@@ -200,7 +200,7 @@ class _HomeScreenState extends State<HomeScreen> {
             const Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('BOOKHUNTER', style: TextStyle(letterSpacing: 2, fontSize: 11, fontWeight: FontWeight.w700, color: Color(0xFFB5A9FF))),
+                Text('READICULOUS', style: TextStyle(letterSpacing: 2, fontSize: 11, fontWeight: FontWeight.w700, color: Color(0xFFB5A9FF))),
                 Text('Find your next obsession', style: TextStyle(fontSize: 19, fontWeight: FontWeight.w700)),
               ],
             ),
