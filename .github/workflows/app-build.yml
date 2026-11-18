@@ -23,7 +23,7 @@ concurrency:
 jobs:
   android-test-build:
     name: Analyze, test and build installable Android APK
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-slim
     timeout-minutes: 30
     steps:
       - name: Check out repository
