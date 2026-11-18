@@ -111,8 +111,352 @@ class DownloadStore {
 
   static Future<Uri> _resolveDownloadUri(String raw, HttpClient client) async {
     if(raw.startsWith('ia://')) {
-      final identifier=raw.substring(5);
-      if(!RegExp(r'^[A-Za-z0-9._-]+$').hasMatch(identifier)) throw const FormatException('Invalid Internet Archive identifier.');
+      final request=Uri.parse(raw);
+      final parts=request.host.isNotEmpty ? request.host : request.path;
+      final identifier=parts.split('?').first;
+      final audio=request.queryParameters['type']=='audio';
+      if(!RegExp(r'^[A-Za-z0-9._-]+
+      final metadataUri=Uri.https('archive.org','/metadata/$identifier');
+      final request=await client.getUrl(metadataUri);
+      final response=await request.close().timeout(const Duration(seconds:45));
+      if(response.statusCode!=200) throw HttpException('Internet Archive file metadata returned HTTP ${response.statusCode}.');
+      final decoded=jsonDecode(await response.transform(utf8.decoder).join());
+      final files=decoded is Map && decoded['files'] is List ? decoded['files'] as List : const [];
+      final candidates=<Map>[];
+      for(final entry in files) {
+        if(entry is! Map || entry['name']==null || entry['private']=='true') continue;
+        final name=entry['name'].toString();
+        final lower=name.toLowerCase();
+        if(audio
+          ? (lower.endsWith('.mp3')||lower.endsWith('.m4b')||lower.endsWith('.m4a')||lower.endsWith('.ogg')||lower.endsWith('.flac'))
+          : (lower.endsWith('.epub')||lower.endsWith('.pdf'))) candidates.add(entry);
+      }
+      if(candidates.isEmpty) throw StateError('Internet Archive has no downloadable EPUB, PDF, or audiobook file for this item.');
+      candidates.sort((a,b) {
+        int score(Map f) {
+          final n=f['name'].toString().toLowerCase();
+          if(audio && n.endsWith('.mp3')) return 0;
+          if(audio && n.endsWith('.m4b')) return 1;
+          if(audio && n.endsWith('.m4a')) return 2;
+          if(!audio && n.endsWith('.epub')) return 0;
+          if(!audio && n.endsWith('.pdf')) return 1;
+          return 4;
+        }
+        return score(a).compareTo(score(b));
+      });
+      final name=candidates.first['name'].toString();
+      return Uri.https('archive.org','/download/$identifier/${Uri.encodeComponent(name)}');
+    }
+    return _validateOrResolveUri(raw);
+  }
+
+  static Future<void> _downloadTask(DownloadTask task) async {
+    File? partFile;
+    HttpClient? client;
+    try {
+      client=HttpClient()..connectionTimeout=const Duration(seconds:25)..userAgent='Readiculous/0.5 (offline library)';
+      final uri=await _resolveDownloadUri(task.url,client);
+      _validateHost(uri);
+      final folder=Directory('${(await getApplicationDocumentsDirectory()).path}/downloads');
+      await folder.create(recursive:true);
+      final safe=task.title.replaceAll(RegExp(r'[^A-Za-z0-9._ -]'),'').trim();
+      final stem='${safe.isEmpty?'book':safe}-${task.id}';
+      partFile=File('${folder.path}/$stem.part');
+      _setTask(task.id,task.copyWith(status:DownloadStatus.downloading,received:0,total:0,clearError:true));
+
+      final request=await client.getUrl(uri).timeout(const Duration(seconds:30));
+      request.followRedirects=true;
+      request.maxRedirects=5;
+      request.headers.set(HttpHeaders.acceptHeader,'application/epub+zip, application/pdf, audio/*, application/zip, text/plain, application/octet-stream;q=0.9, */*;q=0.5');
+      final response=await request.close().timeout(const Duration(seconds:60));
+      _validateHost(response.uri);
+      if(response.statusCode<200||response.statusCode>=300) throw HttpException('The book server returned HTTP ${response.statusCode}.');
+      final mime=response.headers.contentType?.mimeType.toLowerCase()??'';
+      if(mime=='text/html'||mime=='application/json'||mime.contains('html')) throw HttpException('The source returned a webpage instead of a book or audio file.');
+      if(response.contentLength>_maxBytes) throw HttpException('The file exceeds the 500 MB download limit.');
+
+      final sink=partFile.openWrite();
+      var bytes=0;
+      final signature=<int>[];
+      try {
+        await for(final chunk in response.timeout(const Duration(seconds:90))) {
+          if(_paused) {
+            _setTask(task.id,task.copyWith(status:DownloadStatus.paused,received:bytes,total:response.contentLength>0?response.contentLength:0));
+            await _pauseGate?.future;
+          }
+          if(_paused) break;
+          if(signature.length<16) signature.addAll(chunk.take(16-signature.length));
+          bytes+=chunk.length;
+          if(bytes>_maxBytes) throw HttpException('The file exceeds the 500 MB download limit.');
+          sink.add(chunk);
+          _setTask(task.id,task.copyWith(status:DownloadStatus.downloading,received:bytes,total:response.contentLength>0?response.contentLength:0));
+        }
+        await sink.flush();
+      } finally { await sink.close(); }
+
+      if(_paused) { if(await partFile.exists()) await partFile.delete(); return; }
+      if(bytes==0) throw HttpException('The server returned an empty file.');
+      final isZip=signature.length>=2&&signature[0]==0x50&&signature[1]==0x4b;
+      final isPdf=signature.length>=4&&signature[0]==0x25&&signature[1]==0x50&&signature[2]==0x44&&signature[3]==0x46;
+      final isMp3=(signature.length>=3&&String.fromCharCodes(signature.take(3))=='ID3')||(signature.length>=2&&signature[0]==0xff&&(signature[1]&0xe0)==0xe0);
+      String ext;
+      final path=uri.path.toLowerCase();
+      if(isZip||mime=='application/epub+zip'||path.endsWith('.epub')||mime=='application/zip') {
+        if(!isZip) throw HttpException('The downloaded EPUB/archive file is invalid.');
+        ext=path.endsWith('.epub')||mime=='application/epub+zip'?'.epub':'.zip';
+      } else if(isPdf||mime=='application/pdf'||path.endsWith('.pdf')) {
+        if(!isPdf) throw HttpException('The downloaded PDF is invalid.');
+        ext='.pdf';
+      } else if(isMp3||mime=='audio/mpeg'||path.endsWith('.mp3')) {
+        if(!isMp3) throw HttpException('The downloaded MP3 is invalid.');
+        ext='.mp3';
+      } else if(mime=='audio/mp4'||path.endsWith('.m4a')||path.endsWith('.m4b')) {
+        ext=path.endsWith('.m4b')?'.m4b':'.m4a';
+      } else if(mime=='audio/ogg'||path.endsWith('.ogg')) {
+        ext='.ogg';
+      } else if(mime=='audio/flac'||path.endsWith('.flac')) {
+        ext='.flac';
+      } else if(mime.startsWith('text/')) {
+        ext='.txt';
+      } else {
+        throw HttpException('Unsupported file type: ${mime.isEmpty?'unknown':mime}.');
+      }
+
+      final finalFile=File('${folder.path}/$stem$ext');
+      if(await finalFile.exists()) await finalFile.delete();
+      await partFile.rename(finalFile.path);
+      items.value=[...items.value.where((b)=>b.path!=finalFile.path),DownloadedBook(title:task.title,source:task.source,path:finalFile.path,bytes:bytes)];
+      _setTask(task.id,task.copyWith(status:DownloadStatus.completed,received:bytes,total:bytes,clearError:true));
+      await _persist();
+    } catch(error) {
+      if(partFile!=null&&await partFile.exists()) await partFile.delete();
+      _setTask(task.id,task.copyWith(status:DownloadStatus.failed,error:error.toString()));
+      await _persist();
+    } finally {
+      client?.close(force:true);
+    }
+  }
+
+  static void _setTask(String id, DownloadTask updated) {
+    queue.value=queue.value.map((t)=>t.id==id?updated:t).toList();
+  }
+
+  static bool _allowedHost(String host) {
+    final h=host.toLowerCase();
+    return h=='gutenberg.org'||h.endsWith('.gutenberg.org')||
+      h=='archive.org'||h.endsWith('.archive.org')||
+      h=='librivox.org'||h.endsWith('.librivox.org');
+  }
+
+  static void _validateHost(Uri uri) {
+    if(uri.scheme!='https'||!_allowedHost(uri.host)) throw StateError('The download URL is not from a supported secure book catalogue.');
+  }
+
+  static Uri _validateOrResolveUri(String raw) {
+    if(raw.startsWith('ia://')) {
+      final parsed=Uri.parse(raw);
+      final id=(parsed.host.isNotEmpty ? parsed.host : parsed.path).split('?').first;
+      if(!RegExp(r'^[A-Za-z0-9._-]+
+      return Uri.parse(raw);
+    }
+    final uri=Uri.tryParse(raw);
+    if(uri==null) throw StateError('Invalid download URL.');
+    _validateHost(uri);
+    return uri;
+  }
+
+  static Future<void> remove(DownloadedBook book) async {
+    final f=File(book.path); if(await f.exists())await f.delete();
+    items.value=items.value.where((b)=>b.path!=book.path).toList();
+    await _persist();
+  }
+
+  static Future<void> _persist() async {
+    final p=await SharedPreferences.getInstance();
+    await p.setString(_itemsKey,jsonEncode(items.value.map((b)=>b.toJson()).toList()));
+    await p.setString(_queueKey,jsonEncode(queue.value.map((t)=>t.toJson()).toList()));
+  }
+}
+).hasMatch(identifier)) throw const FormatException('Invalid Internet Archive identifier.');
+      final metadataUri=Uri.https('archive.org','/metadata/$identifier');
+      final request=await client.getUrl(metadataUri);
+      final response=await request.close().timeout(const Duration(seconds:45));
+      if(response.statusCode!=200) throw HttpException('Internet Archive file metadata returned HTTP ${response.statusCode}.');
+      final decoded=jsonDecode(await response.transform(utf8.decoder).join());
+      final files=decoded is Map && decoded['files'] is List ? decoded['files'] as List : const [];
+      final candidates=<Map>[];
+      for(final entry in files) {
+        if(entry is! Map || entry['name']==null || entry['private']=='true') continue;
+        final name=entry['name'].toString();
+        final lower=name.toLowerCase();
+        if(lower.endsWith('.epub')||lower.endsWith('.pdf')||lower.endsWith('.mp3')||lower.endsWith('.m4b')||lower.endsWith('.m4a')||lower.endsWith('.ogg')||lower.endsWith('.flac')) candidates.add(entry);
+      }
+      if(candidates.isEmpty) throw StateError('Internet Archive has no downloadable EPUB, PDF, or audiobook file for this item.');
+      candidates.sort((a,b) {
+        int score(Map f) {
+          final n=f['name'].toString().toLowerCase();
+          if(n.endsWith('.epub')) return 0;
+          if(n.endsWith('.mp3')) return 1;
+          if(n.endsWith('.m4b')) return 2;
+          if(n.endsWith('.pdf')) return 3;
+          return 4;
+        }
+        return score(a).compareTo(score(b));
+      });
+      final name=candidates.first['name'].toString();
+      return Uri.https('archive.org','/download/$identifier/${Uri.encodeComponent(name)}');
+    }
+    return _validateOrResolveUri(raw);
+  }
+
+  static Future<void> _downloadTask(DownloadTask task) async {
+    File? partFile;
+    HttpClient? client;
+    try {
+      client=HttpClient()..connectionTimeout=const Duration(seconds:25)..userAgent='Readiculous/0.5 (offline library)';
+      final uri=await _resolveDownloadUri(task.url,client);
+      _validateHost(uri);
+      final folder=Directory('${(await getApplicationDocumentsDirectory()).path}/downloads');
+      await folder.create(recursive:true);
+      final safe=task.title.replaceAll(RegExp(r'[^A-Za-z0-9._ -]'),'').trim();
+      final stem='${safe.isEmpty?'book':safe}-${task.id}';
+      partFile=File('${folder.path}/$stem.part');
+      _setTask(task.id,task.copyWith(status:DownloadStatus.downloading,received:0,total:0,clearError:true));
+
+      final request=await client.getUrl(uri).timeout(const Duration(seconds:30));
+      request.followRedirects=true;
+      request.maxRedirects=5;
+      request.headers.set(HttpHeaders.acceptHeader,'application/epub+zip, application/pdf, audio/*, application/zip, text/plain, application/octet-stream;q=0.9, */*;q=0.5');
+      final response=await request.close().timeout(const Duration(seconds:60));
+      _validateHost(response.uri);
+      if(response.statusCode<200||response.statusCode>=300) throw HttpException('The book server returned HTTP ${response.statusCode}.');
+      final mime=response.headers.contentType?.mimeType.toLowerCase()??'';
+      if(mime=='text/html'||mime=='application/json'||mime.contains('html')) throw HttpException('The source returned a webpage instead of a book or audio file.');
+      if(response.contentLength>_maxBytes) throw HttpException('The file exceeds the 500 MB download limit.');
+
+      final sink=partFile.openWrite();
+      var bytes=0;
+      final signature=<int>[];
+      try {
+        await for(final chunk in response.timeout(const Duration(seconds:90))) {
+          if(_paused) {
+            _setTask(task.id,task.copyWith(status:DownloadStatus.paused,received:bytes,total:response.contentLength>0?response.contentLength:0));
+            await _pauseGate?.future;
+          }
+          if(_paused) break;
+          if(signature.length<16) signature.addAll(chunk.take(16-signature.length));
+          bytes+=chunk.length;
+          if(bytes>_maxBytes) throw HttpException('The file exceeds the 500 MB download limit.');
+          sink.add(chunk);
+          _setTask(task.id,task.copyWith(status:DownloadStatus.downloading,received:bytes,total:response.contentLength>0?response.contentLength:0));
+        }
+        await sink.flush();
+      } finally { await sink.close(); }
+
+      if(_paused) { if(await partFile.exists()) await partFile.delete(); return; }
+      if(bytes==0) throw HttpException('The server returned an empty file.');
+      final isZip=signature.length>=2&&signature[0]==0x50&&signature[1]==0x4b;
+      final isPdf=signature.length>=4&&signature[0]==0x25&&signature[1]==0x50&&signature[2]==0x44&&signature[3]==0x46;
+      final isMp3=(signature.length>=3&&String.fromCharCodes(signature.take(3))=='ID3')||(signature.length>=2&&signature[0]==0xff&&(signature[1]&0xe0)==0xe0);
+      String ext;
+      final path=uri.path.toLowerCase();
+      if(isZip||mime=='application/epub+zip'||path.endsWith('.epub')||mime=='application/zip') {
+        if(!isZip) throw HttpException('The downloaded EPUB/archive file is invalid.');
+        ext=path.endsWith('.epub')||mime=='application/epub+zip'?'.epub':'.zip';
+      } else if(isPdf||mime=='application/pdf'||path.endsWith('.pdf')) {
+        if(!isPdf) throw HttpException('The downloaded PDF is invalid.');
+        ext='.pdf';
+      } else if(isMp3||mime=='audio/mpeg'||path.endsWith('.mp3')) {
+        if(!isMp3) throw HttpException('The downloaded MP3 is invalid.');
+        ext='.mp3';
+      } else if(mime=='audio/mp4'||path.endsWith('.m4a')||path.endsWith('.m4b')) {
+        ext=path.endsWith('.m4b')?'.m4b':'.m4a';
+      } else if(mime=='audio/ogg'||path.endsWith('.ogg')) {
+        ext='.ogg';
+      } else if(mime=='audio/flac'||path.endsWith('.flac')) {
+        ext='.flac';
+      } else if(mime.startsWith('text/')) {
+        ext='.txt';
+      } else {
+        throw HttpException('Unsupported file type: ${mime.isEmpty?'unknown':mime}.');
+      }
+
+      final finalFile=File('${folder.path}/$stem$ext');
+      if(await finalFile.exists()) await finalFile.delete();
+      await partFile.rename(finalFile.path);
+      items.value=[...items.value.where((b)=>b.path!=finalFile.path),DownloadedBook(title:task.title,source:task.source,path:finalFile.path,bytes:bytes)];
+      _setTask(task.id,task.copyWith(status:DownloadStatus.completed,received:bytes,total:bytes,clearError:true));
+      await _persist();
+    } catch(error) {
+      if(partFile!=null&&await partFile.exists()) await partFile.delete();
+      _setTask(task.id,task.copyWith(status:DownloadStatus.failed,error:error.toString()));
+      await _persist();
+    } finally {
+      client?.close(force:true);
+    }
+  }
+
+  static void _setTask(String id, DownloadTask updated) {
+    queue.value=queue.value.map((t)=>t.id==id?updated:t).toList();
+  }
+
+  static bool _allowedHost(String host) {
+    final h=host.toLowerCase();
+    return h=='gutenberg.org'||h.endsWith('.gutenberg.org')||
+      h=='archive.org'||h.endsWith('.archive.org')||
+      h=='librivox.org'||h.endsWith('.librivox.org');
+  }
+
+  static void _validateHost(Uri uri) {
+    if(uri.scheme!='https'||!_allowedHost(uri.host)) throw StateError('The download URL is not from a supported secure book catalogue.');
+  }
+
+  static Uri _validateOrResolveUri(String raw) {
+    if(raw.startsWith('ia://')) {
+      final id=raw.substring(5);
+      if(!RegExp(r'^[A-Za-z0-9._-]+$').hasMatch(id)) throw StateError('Invalid Internet Archive identifier.');
+      return Uri.parse(raw);
+    }
+    final uri=Uri.tryParse(raw);
+    if(uri==null) throw StateError('Invalid download URL.');
+    _validateHost(uri);
+    return uri;
+  }
+
+  static Future<void> remove(DownloadedBook book) async {
+    final f=File(book.path); if(await f.exists())await f.delete();
+    items.value=items.value.where((b)=>b.path!=book.path).toList();
+    await _persist();
+  }
+
+  static Future<void> _persist() async {
+    final p=await SharedPreferences.getInstance();
+    await p.setString(_itemsKey,jsonEncode(items.value.map((b)=>b.toJson()).toList()));
+    await p.setString(_queueKey,jsonEncode(queue.value.map((t)=>t.toJson()).toList()));
+  }
+}
+).hasMatch(id)) throw StateError('Invalid Internet Archive identifier.');
+      return Uri.parse(raw);
+    }
+    final uri=Uri.tryParse(raw);
+    if(uri==null) throw StateError('Invalid download URL.');
+    _validateHost(uri);
+    return uri;
+  }
+
+  static Future<void> remove(DownloadedBook book) async {
+    final f=File(book.path); if(await f.exists())await f.delete();
+    items.value=items.value.where((b)=>b.path!=book.path).toList();
+    await _persist();
+  }
+
+  static Future<void> _persist() async {
+    final p=await SharedPreferences.getInstance();
+    await p.setString(_itemsKey,jsonEncode(items.value.map((b)=>b.toJson()).toList()));
+    await p.setString(_queueKey,jsonEncode(queue.value.map((t)=>t.toJson()).toList()));
+  }
+}
+).hasMatch(identifier)) throw const FormatException('Invalid Internet Archive identifier.');
       final metadataUri=Uri.https('archive.org','/metadata/$identifier');
       final request=await client.getUrl(metadataUri);
       final response=await request.close().timeout(const Duration(seconds:45));
