@@ -30,7 +30,7 @@ void main() {
       if (request.url.host == 'api.openalex.org') return http.Response(jsonEncode({'results': []}), 200);
       if (request.url.host == 'library.oapen.org') return http.Response(jsonEncode({'searchResult': {'searchResults': {'entry': []}}}), 200);
       if (request.url.host == 'api.openaire.eu') return http.Response(jsonEncode({'results': []}), 200);
-      if (request.url.host == 'api.crossref.org') return http.Response(jsonEncode({'message': {'items': []}}), 200);
+      if (request.url.host == 'api.crossref.org') return http.Response(jsonEncode({'message': {'items': [{'type': 'book', 'title': ['Dune Encyclopedia'], 'author': [{'given': 'Frank', 'family': 'Herbert'}], 'published': {'date-parts': [[1984]]}, 'DOI': '10.0000/dune', 'URL': 'https://crossref.test/dune'}]}}), 200);
       if (request.url.host == 'www.wikidata.org') return http.Response(jsonEncode({'search': []}), 200);
       if (request.url.host == 'directory.doabooks.org') return http.Response(jsonEncode({'searchResult': {'searchResults': {'entry': []}}}), 200);
       if (request.url.host == 'zenodo.org') return http.Response(jsonEncode({'hits': {'hits': []}}), 200);
@@ -48,6 +48,8 @@ void main() {
     expect(response.failures, isEmpty);
     expect(response.results.where((r) => r.format == BookFormat.ebook), hasLength(2));
     expect(response.results.where((r) => r.format == BookFormat.audiobook), hasLength(2));
+    expect(response.results.where((r) => r.format == BookFormat.catalogue), hasLength(1));
+    expect(response.results.any((r) => r.source == 'Crossref' && r.accessLabel == 'Bibliographic metadata only'), isTrue);
     expect(response.results.any((r) => r.source == 'LibriVox'), isTrue);
     expect(response.results.any((r) => r.source == 'Library of Congress'), isTrue);
     expect(response.results.every((r) => r.coverUrl == null || r.coverUrl!.startsWith('https://')), isTrue);
@@ -81,9 +83,11 @@ void main() {
   test('mode filter separates ebook and audiobook results', () {
     const ebook = BookResult(title: 'Title', authors: 'Author', source: 'Test', url: 'https://example.com', format: BookFormat.ebook);
     const audio = BookResult(title: 'Title', authors: 'Author', source: 'Test', url: 'https://example.com', format: BookFormat.audiobook);
+    const catalogue = BookResult(title: 'Metadata record', authors: '', source: 'Crossref', url: 'https://example.com', format: BookFormat.catalogue);
     expect(ebook.matches(SearchMode.ebooks), isTrue);
     expect(ebook.matches(SearchMode.audiobooks), isFalse);
     expect(audio.matches(SearchMode.audiobooks), isTrue);
     expect(audio.matches(SearchMode.ebooks), isFalse);
+    expect(catalogue.matches(SearchMode.ebooks), isTrue);
   });
 }
