@@ -118,7 +118,7 @@ class SearchService {
       final cover = info['imageLinks'] is Map ? (info['imageLinks'] as Map)['thumbnail']?.toString() : null;
       final previewLink = _text(info['previewLink'], '');
       final preview = previewLink.isNotEmpty ? previewLink : _text(info['infoLink'], '');
-      if (preview == null || preview.isEmpty) return null;
+      if (preview.isEmpty) return null;
       return BookResult(
         title: _text(info['title'], 'Untitled'),
         authors: authors,
