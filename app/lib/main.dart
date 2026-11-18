@@ -158,20 +158,21 @@ class _HomeScreenState extends State<HomeScreen> {
     return ListView(
       padding: const EdgeInsets.fromLTRB(20, 24, 20, 28),
       children: [
-        Row(
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            ClipRRect(borderRadius: BorderRadius.circular(15), child: Image.asset('assets/readiculous_icon.jpg', width: 46, height: 46, fit: BoxFit.cover)),
-            const SizedBox(width: 12),
-            const Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('READICULOUS', style: TextStyle(letterSpacing: 2, fontSize: 11, fontWeight: FontWeight.w700, color: Color(0xFFB5A9FF))),
-                  Text('Find your next obsession', style: TextStyle(fontSize: 19, fontWeight: FontWeight.w700), maxLines: 1, overflow: TextOverflow.ellipsis),
-                ],
+            Image.asset('assets/readiculous_icon.jpg', width: 88, height: 88, fit: BoxFit.contain),
+            const SizedBox(height: 10),
+            const Text('READICULOUS', style: TextStyle(letterSpacing: 2, fontSize: 11, fontWeight: FontWeight.w700, color: Color(0xFFB5A9FF))),
+            const Text('Find your next obsession', style: TextStyle(fontSize: 19, fontWeight: FontWeight.w700)),
+            Align(
+              alignment: Alignment.centerRight,
+              child: IconButton(
+                tooltip: 'What’s new',
+                onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const ChangelogPage())),
+                icon: const Icon(Icons.new_releases_outlined),
               ),
             ),
-            IconButton(tooltip: 'What’s new', onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const ChangelogPage())), icon: const Icon(Icons.new_releases_outlined)),
           ],
         ),
         const SizedBox(height: 28),
