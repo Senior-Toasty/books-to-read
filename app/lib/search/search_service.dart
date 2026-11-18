@@ -23,6 +23,7 @@ class SearchService {
   SearchService({http.Client? client}) : _client = client ?? http.Client();
 
   final http.Client _client;
+  void close() => _client.close();
   static const _timeout = Duration(seconds: 14);
 
   Future<SearchResponse> search(String rawQuery, {SearchMode mode = SearchMode.all}) async {
