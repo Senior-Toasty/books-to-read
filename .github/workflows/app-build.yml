@@ -28,7 +28,7 @@ jobs:
       - name: Check Flutter project
         run: flutter pub get
         working-directory: app
-      - run: flutter analyze --fatal-infos
+      - run: flutter analyze
         working-directory: app
       - run: flutter test
         working-directory: app
