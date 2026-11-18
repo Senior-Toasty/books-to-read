@@ -1,52 +1,50 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
 <defs>
-  <linearGradient id="night" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#07152f"/><stop offset=".55" stop-color="#10264d"/><stop offset="1" stop-color="#07162f"/></linearGradient>
-  <linearGradient id="blueCover" x1="0" y1="0" x2="0.9" y2="1"><stop stop-color="#8da9dc"/><stop offset="1" stop-color="#45679e"/></linearGradient>
-  <linearGradient id="navyCover" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#243f70"/><stop offset="1" stop-color="#10264c"/></linearGradient>
-  <linearGradient id="pages" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#fff0cf"/><stop offset="1" stop-color="#e8c995"/></linearGradient>
+ <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#07152f"/><stop offset=".52" stop-color="#10254a"/><stop offset="1" stop-color="#07152f"/></linearGradient>
+ <linearGradient id="navy" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#294879"/><stop offset="1" stop-color="#142b52"/></linearGradient>
+ <linearGradient id="blue" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#9bb5e6"/><stop offset="1" stop-color="#577bb5"/></linearGradient>
+ <linearGradient id="paper" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#fff0d0"/><stop offset="1" stop-color="#e9c995"/></linearGradient>
+ <filter id="grain"><feTurbulence type="fractalNoise" baseFrequency=".75" numOctaves="2" seed="8"/><feColorMatrix values="1 0 0 0 .15 0 1 0 0 .15 0 0 1 0 .15 0 0 0 .12 0"/><feBlend in="SourceGraphic" mode="soft-light"/></filter>
 </defs>
-<rect width="512" height="512" rx="112" fill="url(#night)"/>
-<g fill="#f5d49b">
-  <circle cx="154" cy="128" r="4"/><circle cx="282" cy="96" r="3"/><circle cx="435" cy="258" r="4"/><circle cx="120" cy="398" r="4"/><circle cx="365" cy="411" r="3"/>
-  <path d="M388 68l7 22 22 7-22 7-7 22-7-22-22-7 22-7z"/>
-  <path d="M93 154l6 18 18 6-18 6-6 18-6-18-18-6 18-6z"/>
-  <path d="M220 359l5 15 15 5-15 5-5 15-5-15-15-5 15-5z"/>
-  <path d="M455 300l5 15 15 5-15 5-5 15-5-15-15-5 15-5z"/>
+<rect width="512" height="512" rx="112" fill="url(#bg)"/>
+<g fill="#f7d9a7" stroke="#f7d9a7" stroke-linecap="round">
+ <circle cx="155" cy="128" r="4"/><circle cx="282" cy="102" r="3"/><circle cx="455" cy="258" r="4"/><circle cx="148" cy="397" r="4"/><circle cx="367" cy="410" r="3"/>
+ <path d="M390 78 Q394 103 417 108 Q394 113 390 139 Q386 113 362 108 Q386 103 390 78Z"/>
+ <path d="M101 148 Q105 178 134 184 Q105 190 101 220 Q97 190 68 184 Q97 178 101 148Z"/>
+ <path d="M220 348 Q224 373 247 378 Q224 383 220 408 Q216 383 193 378 Q216 373 220 348Z"/>
+ <path d="M455 278 Q459 304 481 309 Q459 314 455 340 Q451 314 429 309 Q451 304 455 278Z"/>
 </g>
-<!-- top book: dark blue cover and warm pages -->
-<g stroke="#091a38" stroke-width="8" stroke-linejoin="round">
-  <path d="M139 188 254 143 398 172 284 226Z" fill="#345584"/>
-  <path d="M139 188 284 226 282 282 134 244Z" fill="url(#navyCover)"/>
-  <path d="M284 226 398 172 399 226 282 282Z" fill="url(#pages)"/>
-  <path d="M294 238 385 195M292 250 386 207M291 263 387 220" fill="none" stroke="#c9a979" stroke-width="3"/>
-  <path d="M151 195 257 155 379 180" fill="none" stroke="#6c8cbd" stroke-width="4" opacity=".8"/>
-  <path d="M158 199 158 238M178 205 178 244M260 228 260 275" fill="none" stroke="#5576a9" stroke-width="5"/>
+<!-- upper dark book -->
+<g stroke="#0a1a38" stroke-width="5" stroke-linejoin="round" filter="url(#grain)">
+ <path d="M132 190 L253 145 Q261 141 271 145 L398 174 L284 229Z" fill="#345889"/>
+ <path d="M132 190 L284 229 L282 282 L131 244 Q121 240 122 229 L124 207 Q125 196 132 190Z" fill="url(#navy)"/>
+ <path d="M284 229 L398 174 L398 224 Q397 233 388 237 L282 282Z" fill="url(#paper)"/>
+ <path d="M296 241 L385 199 M294 253 L387 211 M292 266 L388 224" fill="none" stroke="#c9a979" stroke-width="2.5"/>
+ <path d="M146 194 L257 154 L378 181" fill="none" stroke="#7191c5" stroke-width="3" opacity=".9"/>
+ <path d="M145 198 Q134 220 143 242 M164 204 Q153 227 162 247 M260 231 Q251 253 260 276" fill="none" stroke="#6484b7" stroke-width="4"/>
 </g>
-<!-- middle book -->
-<g stroke="#0a1c3b" stroke-width="8" stroke-linejoin="round">
-  <path d="M105 255 230 213 385 250 257 299Z" fill="url(#blueCover)"/>
-  <path d="M105 255 257 299 256 358 99 311Z" fill="#5c7fb5"/>
-  <path d="M257 299 385 250 390 306 256 358Z" fill="url(#pages)"/>
-  <path d="M269 311 374 272M268 325 376 286M267 339 377 300" fill="none" stroke="#c9a979" stroke-width="3"/>
-  <path d="M129 265 130 311M151 271 152 318M232 292 232 348" fill="none" stroke="#a9bee1" stroke-width="5" opacity=".8"/>
-  <path d="M180 284c-22-13-24-43-7-59-30 5-44 38-28 62 14 21 44 23 63 7-11 2-21-2-28-10Z" fill="#f5d49b" stroke="none"/>
+<!-- middle blue book -->
+<g stroke="#0a1a38" stroke-width="5" stroke-linejoin="round" filter="url(#grain)">
+ <path d="M106 254 L230 211 Q239 208 250 212 L386 250 L257 301Z" fill="url(#blue)"/>
+ <path d="M106 254 L257 301 L256 358 L101 311 Q92 307 93 295 L96 270 Q98 259 106 254Z" fill="#6486bd"/>
+ <path d="M257 301 L386 250 L389 304 Q389 314 379 318 L256 358Z" fill="url(#paper)"/>
+ <path d="M270 312 L374 272 M269 326 L377 286 M268 341 L378 301" fill="none" stroke="#c9a979" stroke-width="2.5"/>
+ <path d="M127 264 Q116 286 126 311 M150 271 Q139 293 149 318 M233 294 Q224 320 233 348" fill="none" stroke="#a9bee1" stroke-width="4"/>
+ <path d="M184 285 C162 270 162 241 181 226 C150 230 135 265 153 290 C168 312 198 313 219 295 C205 299 193 295 184 285Z" fill="#f5d49b" stroke="none"/>
 </g>
 <!-- bottom book -->
-<g stroke="#091a38" stroke-width="8" stroke-linejoin="round">
-  <path d="M93 322 225 281 397 319 260 373Z" fill="#233f70"/>
-  <path d="M93 322 260 373 262 425 89 371Z" fill="url(#navyCover)"/>
-  <path d="M260 373 397 319 403 371 262 425Z" fill="url(#pages)"/>
-  <path d="M274 385 389 340M275 399 390 354M276 412 391 367" fill="none" stroke="#c9a979" stroke-width="3"/>
-  <path d="M115 330 117 365M137 337 139 373M235 365 237 416" fill="none" stroke="#47699f" stroke-width="5"/>
+<g stroke="#091a38" stroke-width="5" stroke-linejoin="round" filter="url(#grain)">
+ <path d="M92 322 L224 280 Q233 277 244 281 L397 319 L260 375Z" fill="#294777"/>
+ <path d="M92 322 L260 375 L262 426 L91 372 Q80 368 82 356 L84 337 Q85 328 92 322Z" fill="url(#navy)"/>
+ <path d="M260 375 L397 319 L401 369 Q401 379 392 383 L262 426Z" fill="url(#paper)"/>
+ <path d="M275 387 L389 341 M276 401 L391 355 M277 414 L392 368" fill="none" stroke="#c9a979" stroke-width="2.5"/>
+ <path d="M113 330 Q103 350 114 373 M136 338 Q126 360 137 380 M235 366 Q226 390 236 416" fill="none" stroke="#5474a8" stroke-width="4"/>
 </g>
-<!-- orbiting golden sweep -->
-<path d="M57 330C98 389 204 370 298 328c93-42 160-112 142-157-9-23-36-31-67-27" fill="none" stroke="#f4d39b" stroke-width="10" stroke-linecap="round"/>
-<path d="M59 329C43 355 45 380 68 392" fill="none" stroke="#f4d39b" stroke-width="6" stroke-linecap="round"/>
-<!-- star on the top cover -->
-<path d="M255 164l7 17 17 7-17 7-7 17-7-17-17-7 17-7z" fill="#f6d9a6"/>
-<!-- little hand-painted marks -->
-<g fill="none" stroke="#f4d39b" stroke-width="5" stroke-linecap="round">
-  <path d="M292 92l-11 18M307 78l-4 17"/>
-  <path d="M92 231l-9 13"/>
-</g>
+<!-- sweeping orbital brush stroke -->
+<path d="M55 330 C77 382 177 386 281 347 C381 310 469 244 446 194 C434 169 405 161 375 163" fill="none" stroke="#f4d39b" stroke-width="11" stroke-linecap="round"/>
+<path d="M58 331 C38 357 40 382 68 396" fill="none" stroke="#f4d39b" stroke-width="6" stroke-linecap="round"/>
+<!-- top book star -->
+<path d="M255 165 Q260 183 279 188 Q260 193 255 212 Q250 193 231 188 Q250 183 255 165Z" fill="#f7d9a7"/>
+<!-- hand-painted little strokes -->
+<g fill="none" stroke="#f4d39b" stroke-width="4" stroke-linecap="round"><path d="M293 91 L282 109 M309 78 L303 96 M92 232 L82 247"/></g>
 </svg>
