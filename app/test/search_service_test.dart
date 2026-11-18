@@ -60,6 +60,7 @@ void main() {
     expect(response.completedProviders, 14);
     expect(response.failures, isEmpty);
     expect(response.results.where((r) => r.format == BookFormat.ebook), hasLength(4));
+    expect(response.results.first.title, 'Dune');
     expect(response.results.where((r) => r.format == BookFormat.audiobook), hasLength(2));
     expect(response.results.where((r) => r.format == BookFormat.catalogue), hasLength(1));
     expect(response.results.any((r) => r.source == 'OAPEN' && r.title == 'Open Access Example Book'), isTrue);
