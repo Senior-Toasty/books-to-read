@@ -25,6 +25,15 @@ void main() {
           {'identifier': 'dune-audio', 'title': 'Dune audiobook', 'creator': 'Frank Herbert', 'mediatype': 'audio'}
         ]}}), 200);
       }
+      if (request.url.host == 'www.loc.gov') return http.Response(jsonEncode({'results': [{'title': 'Dune Library edition', 'contributor': ['Frank Herbert'], 'url': 'https://loc.gov/item/dune', 'date': '1965', 'online_format': ['pdf']}]}), 200);
+      if (request.url.host == 'en.wikisource.org') return http.Response(jsonEncode({'query': {'search': []}}), 200);
+      if (request.url.host == 'api.openalex.org') return http.Response(jsonEncode({'results': []}), 200);
+      if (request.url.host == 'library.oapen.org') return http.Response(jsonEncode({'searchResult': {'searchResults': {'entry': []}}}), 200);
+      if (request.url.host == 'api.openaire.eu') return http.Response(jsonEncode({'results': []}), 200);
+      if (request.url.host == 'api.crossref.org') return http.Response(jsonEncode({'message': {'items': []}}), 200);
+      if (request.url.host == 'www.wikidata.org') return http.Response(jsonEncode({'search': []}), 200);
+      if (request.url.host == 'directory.doabooks.org') return http.Response(jsonEncode({'searchResult': {'searchResults': {'entry': []}}}), 200);
+      if (request.url.host == 'zenodo.org') return http.Response(jsonEncode({'hits': {'hits': []}}), 200);
       if (request.url.host == 'librivox.org') {
         return http.Response(jsonEncode({'books': [
           {'id': '123', 'title': 'Dune audiobook', 'authors': [{'last_name': 'Herbert'}], 'url_librivox': 'https://librivox.test/dune', 'coverart': 'http://covers.test/audio.jpg'}
@@ -35,11 +44,12 @@ void main() {
 
     final service = SearchService(client: client);
     final response = await service.search('Dune');
-    expect(response.completedProviders, 5);
+    expect(response.completedProviders, 14);
     expect(response.failures, isEmpty);
-    expect(response.results.where((r) => r.format == BookFormat.ebook), hasLength(1));
+    expect(response.results.where((r) => r.format == BookFormat.ebook), hasLength(2));
     expect(response.results.where((r) => r.format == BookFormat.audiobook), hasLength(2));
     expect(response.results.any((r) => r.source == 'LibriVox'), isTrue);
+    expect(response.results.any((r) => r.source == 'Library of Congress'), isTrue);
     expect(response.results.every((r) => r.coverUrl == null || r.coverUrl!.startsWith('https://')), isTrue);
     client.close();
   });
@@ -51,6 +61,15 @@ void main() {
       if (request.url.host == 'gutendex.com') return http.Response(jsonEncode({'results': []}), 200);
       if (request.url.host == 'archive.org') return http.Response(jsonEncode({'response': {'docs': []}}), 200);
       if (request.url.host == 'librivox.org') return http.Response(jsonEncode({'books': []}), 200);
+      if (request.url.host == 'www.loc.gov') return http.Response(jsonEncode({'results': []}), 200);
+      if (request.url.host == 'en.wikisource.org') return http.Response(jsonEncode({'query': {'search': []}}), 200);
+      if (request.url.host == 'api.openalex.org') return http.Response(jsonEncode({'results': []}), 200);
+      if (request.url.host == 'library.oapen.org') return http.Response(jsonEncode({'searchResult': {'searchResults': {'entry': []}}}), 200);
+      if (request.url.host == 'api.openaire.eu') return http.Response(jsonEncode({'results': []}), 200);
+      if (request.url.host == 'api.crossref.org') return http.Response(jsonEncode({'message': {'items': []}}), 200);
+      if (request.url.host == 'www.wikidata.org') return http.Response(jsonEncode({'search': []}), 200);
+      if (request.url.host == 'directory.doabooks.org') return http.Response(jsonEncode({'searchResult': {'searchResults': {'entry': []}}}), 200);
+      if (request.url.host == 'zenodo.org') return http.Response(jsonEncode({'hits': {'hits': []}}), 200);
       return http.Response('', 500);
     });
     final response = await SearchService(client: client).search('test');
