@@ -209,3 +209,10 @@ The Flutter app currently has a Discover screen, Library and Downloads navigatio
 Searches fan out concurrently; individual provider failures are surfaced without discarding other results. Results include source links, covers where available, format labels, and basic access notes. Metadata-only research and catalogue records are labelled separately from ebook and audiobook records. The app does not claim a catalogue record is a free downloadable file; availability and rights must be verified at the source.
 
 Search currently runs in Flutter/Dart networking. Rust core remains the shared engine foundation and is planned to receive the provider and matching layer as mobile FFI is introduced.
+
+
+## BookHunter mobile app (Stage 3 foundation)
+
+Stage 3 begins the offline experience with a persistent on-device library. Search results can be saved and removed, and saved metadata remains available after the app is closed. This stage also detects the all-provider DNS failure pattern and shows device-network troubleshooting guidance instead of making fourteen catalogue errors look like fourteen unrelated outages.
+
+The current save feature stores book metadata and source links; it does **not** download book files. Direct-file downloads, progress, storage management, and offline reading are separate follow-on work because catalogue landing pages are not necessarily downloadable files and rights must be checked.
