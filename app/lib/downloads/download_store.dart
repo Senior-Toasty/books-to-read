@@ -11,25 +11,25 @@ import '../search/book_result.dart';
 enum DownloadStatus { queued, downloading, paused, failed, completed }
 
 class DownloadTask {
-  const DownloadTask({required this.id, required this.title, required this.source, required this.url, required this.status, this.received = 0, this.total = 0, this.error});
-  final String id, title, source, url;
+  const DownloadTask({required this.id, required this.title, required this.source, required this.url, required this.status, this.authors = '', this.received = 0, this.total = 0, this.error});
+  final String id, title, source, url, authors;
   final DownloadStatus status;
   final int received, total;
   final String? error;
   double get progress => total > 0 ? (received / total).clamp(0.0, 1.0) : 0;
-  DownloadTask copyWith({DownloadStatus? status, int? received, int? total, String? error, bool clearError = false}) => DownloadTask(id:id,title:title,source:source,url:url,status:status??this.status,received:received??this.received,total:total??this.total,error:clearError?null:error??this.error);
-  Map<String,dynamic> toJson()=>{'id':id,'title':title,'source':source,'url':url,'status':status.name,'received':received,'total':total,'error':error};
-  factory DownloadTask.fromJson(Map<String,dynamic> j)=>DownloadTask(id:j['id']?.toString()??'',title:j['title']?.toString()??'Untitled',source:j['source']?.toString()??'',url:j['url']?.toString()??'',status:DownloadStatus.values.firstWhere((s)=>s.name==j['status'],orElse:()=>DownloadStatus.queued),received:(j['received'] as num?)?.toInt()??0,total:(j['total'] as num?)?.toInt()??0,error:j['error']?.toString());
+  DownloadTask copyWith({DownloadStatus? status, int? received, int? total, String? error, bool clearError = false}) => DownloadTask(id:id,title:title,source:source,url:url,status:status??this.status,authors:authors,received:received??this.received,total:total??this.total,error:clearError?null:error??this.error);
+  Map<String,dynamic> toJson()=>{'id':id,'title':title,'authors':authors,'source':source,'url':url,'status':status.name,'received':received,'total':total,'error':error};
+  factory DownloadTask.fromJson(Map<String,dynamic> j)=>DownloadTask(id:j['id']?.toString()??'',title:j['title']?.toString()??'Untitled',source:j['source']?.toString()??'',url:j['url']?.toString()??'',status:DownloadStatus.values.firstWhere((s)=>s.name==j['status'],orElse:()=>DownloadStatus.queued),authors:j['authors']?.toString()??'',received:(j['received'] as num?)?.toInt()??0,total:(j['total'] as num?)?.toInt()??0,error:j['error']?.toString());
 }
 
 class DownloadedBook {
-  const DownloadedBook({required this.title, required this.source, required this.path, required this.bytes});
-  final String title, source, path;
+  const DownloadedBook({required this.title, required this.source, required this.path, required this.bytes, this.authors = ''});
+  final String title, source, path, authors;
   final int bytes;
   String get extension => path.split('.').last.toLowerCase();
   bool get isAudio => const {'mp3','m4a','m4b','ogg','flac','wav','zip'}.contains(extension);
-  Map<String,dynamic> toJson()=>{'title':title,'source':source,'path':path,'bytes':bytes};
-  factory DownloadedBook.fromJson(Map<String,dynamic> j)=>DownloadedBook(title:j['title']?.toString()??'Untitled',source:j['source']?.toString()??'',path:j['path']?.toString()??'',bytes:(j['bytes'] as num?)?.toInt()??0);
+  Map<String,dynamic> toJson()=>{'title':title,'authors':authors,'source':source,'path':path,'bytes':bytes};
+  factory DownloadedBook.fromJson(Map<String,dynamic> j)=>DownloadedBook(title:j['title']?.toString()??'Untitled',source:j['source']?.toString()??'',path:j['path']?.toString()??'',bytes:(j['bytes'] as num?)?.toInt()??0,authors:j['authors']?.toString()??'');
 }
 
 class DownloadStore {
@@ -65,7 +65,7 @@ class DownloadStore {
     }
     _validateOrResolveUri(raw);
     if(queue.value.any((t)=>t.url==raw && (t.status==DownloadStatus.queued||t.status==DownloadStatus.downloading||t.status==DownloadStatus.completed))) return;
-    final task=DownloadTask(id:'${DateTime.now().microsecondsSinceEpoch}',title:book.title,source:book.source,url:raw,status:DownloadStatus.queued);
+    final task=DownloadTask(id:'${DateTime.now().microsecondsSinceEpoch}',title:book.title,authors:book.authors,source:book.source,url:raw,status:DownloadStatus.queued);
     queue.value=[...queue.value,task];
     await _persist();
     unawaited(resume());
@@ -232,7 +232,7 @@ class DownloadStore {
       final finalFile=File('${folder.path}/$stem$ext');
       if(await finalFile.exists()) await finalFile.delete();
       await partFile.rename(finalFile.path);
-      items.value=[...items.value.where((b)=>b.path!=finalFile.path),DownloadedBook(title:task.title,source:task.source,path:finalFile.path,bytes:bytes)];
+      items.value=[...items.value.where((b)=>b.path!=finalFile.path),DownloadedBook(title:task.title,authors:task.authors,source:task.source,path:finalFile.path,bytes:bytes)];
       _setTask(task.id,task.copyWith(status:DownloadStatus.completed,received:bytes,total:bytes,clearError:true));
       await _persist();
     } catch(error) {
