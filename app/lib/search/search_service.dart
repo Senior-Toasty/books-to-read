@@ -139,13 +139,18 @@ class SearchService {
         authors: _join(raw['author_name']),
         source: 'Open Library',
         url: 'https://openlibrary.org$key',
-        format: BookFormat.ebook,
+        format: _openLibraryFormat(raw['ebook_access']),
         year: _text(raw['first_publish_year'], ''),
         coverUrl: coverId == null ? null : 'https://covers.openlibrary.org/b/id/${coverId}-M.jpg',
         accessLabel: _openLibraryAccess(raw['ebook_access']),
       );
     }).whereType<BookResult>().toList();
   }
+
+  BookFormat _openLibraryFormat(dynamic value) => switch (value?.toString()) {
+        'public' || 'borrowable' || 'printdisabled' => BookFormat.ebook,
+        _ => BookFormat.catalogue,
+      };
 
   String _openLibraryAccess(dynamic value) => switch (value?.toString()) {
         'public' => 'Public access reported',
@@ -259,7 +264,7 @@ class SearchService {
         authors: _join(raw['contributor']),
         source: 'Library of Congress',
         url: url,
-        format: BookFormat.ebook,
+        format: online.contains('pdf') || online.contains('image') ? BookFormat.ebook : BookFormat.catalogue,
         year: _text(raw['date'], ''),
         accessLabel: online.contains('pdf') || online.contains('image') ? 'Digitized item; access terms to check' : 'Catalogue record',
       );
@@ -320,7 +325,7 @@ class SearchService {
         authors: authors,
         source: 'OpenAlex',
         url: url,
-        format: BookFormat.ebook,
+        format: BookFormat.catalogue,
         year: _text(raw['publication_year'], ''),
         accessLabel: 'Open-access scholarly record; may not be the requested book',
       );
@@ -450,7 +455,7 @@ class SearchService {
         authors: names.join('; '),
         source: 'OpenAIRE',
         url: url,
-        format: BookFormat.ebook,
+        format: BookFormat.catalogue,
         year: _text(raw['publicationDate'], ''),
         accessLabel: 'Research record; verify book/full-text status',
         description: _text(raw['bestAccessRight'] is Map ? (raw['bestAccessRight'] as Map)['label'] : null, ''),
@@ -502,7 +507,7 @@ class SearchService {
         authors: people,
         source: 'Crossref',
         url: link,
-        format: BookFormat.ebook,
+        format: BookFormat.catalogue,
         year: year,
         accessLabel: 'Bibliographic metadata only',
         description: 'Crossref metadata does not establish free full-text access.',
@@ -527,7 +532,7 @@ class SearchService {
         authors: '',
         source: 'Wikidata',
         url: 'https://www.wikidata.org/wiki/$id',
-        format: BookFormat.ebook,
+        format: BookFormat.catalogue,
         accessLabel: 'Bibliographic metadata only',
         description: _text(raw['description'], ''),
       );
@@ -556,7 +561,7 @@ class SearchService {
         authors: authors,
         source: 'Zenodo',
         url: url,
-        format: BookFormat.ebook,
+        format: BookFormat.catalogue,
         year: _text(metadata['publication_date'], ''),
         accessLabel: 'Repository record; check file and licence',
         description: [if (resource.isNotEmpty) 'Resource type: $resource', if (license.isNotEmpty) 'Licence: $license'].join(' · '),
