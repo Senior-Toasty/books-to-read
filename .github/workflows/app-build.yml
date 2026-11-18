@@ -23,11 +23,16 @@ concurrency:
 jobs:
   android-test-build:
     name: Analyze, test and build installable Android APK
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
+
+      - name: Confirm runner is available
+        run: |
+          echo "Runner: $RUNNER_OS / $RUNNER_ARCH"
+          uname -a
 
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
