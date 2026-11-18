@@ -67,10 +67,27 @@ class SearchService {
       }
     }
     results.sort((a, b) {
+      final relevance = _relevance(query, b).compareTo(_relevance(query, a));
+      if (relevance != 0) return relevance;
       final title = a.title.toLowerCase().compareTo(b.title.toLowerCase());
       return title != 0 ? title : a.source.compareTo(b.source);
     });
     return SearchResponse(results: results, failures: failures, completedProviders: providers.length);
+  }
+
+  double _relevance(String query, BookResult result) {
+    final normalizedQuery = query.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '');
+    final normalizedTitle = result.title.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '');
+    if (normalizedQuery.isEmpty || normalizedTitle.isEmpty) return 0;
+    if (normalizedTitle == normalizedQuery) return 1.2;
+    if (normalizedTitle.contains(normalizedQuery)) return 1.0;
+    final queryTokens = query.toLowerCase().split(RegExp(r'[^a-z0-9]+')).where((token) => token.isNotEmpty).toSet();
+    final titleTokens = result.title.toLowerCase().split(RegExp(r'[^a-z0-9]+')).where((token) => token.isNotEmpty).toSet();
+    if (queryTokens.isEmpty) return 0;
+    final coverage = queryTokens.intersection(titleTokens).length / queryTokens.length;
+    final authorTokens = result.authors.toLowerCase().split(RegExp(r'[^a-z0-9]+')).where((token) => token.isNotEmpty).toSet();
+    final authorMatch = queryTokens.intersection(authorTokens).isNotEmpty ? 0.1 : 0.0;
+    return coverage + authorMatch;
   }
 
   String _cleanError(String value) {
