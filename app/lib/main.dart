@@ -462,7 +462,7 @@ class _SearchResultsPageState extends State<SearchResultsPage> {
                     try {
                       await DownloadStore.download(item);
                       if (mounted) ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Saved for offline use.')),
+                        const SnackBar(content: Text('Added to the download queue. Check Downloads for progress.')),
                       );
                     } catch (error) {
                       if (mounted) ScaffoldMessenger.of(context).showSnackBar(
