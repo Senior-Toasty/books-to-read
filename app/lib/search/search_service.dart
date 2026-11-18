@@ -268,7 +268,7 @@ class SearchService {
         accessLabel: raw['url_zip']?.toString().isNotEmpty == true
             ? 'Free public-domain audiobook · downloadable archive'
             : 'Free public-domain audiobook · no direct file supplied',
-        downloadUrl: raw['url_zip']?.toString(),
+        downloadUrl: _https(raw['url_zip']?.toString()),
       );
     }).whereType<BookResult>().toList();
   }
