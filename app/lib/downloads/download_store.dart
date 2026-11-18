@@ -70,7 +70,7 @@ class DownloadStore {
     final client = HttpClient();
     try {
       final request = await client.getUrl(uri);
-      request.headers.set(HttpHeaders.userAgentHeader, 'BookHunter/0.2');
+      request.headers.set(HttpHeaders.userAgentHeader, 'Readiculous/0.2');
       final response = await request.close().timeout(const Duration(seconds: 60));
       if (response.statusCode < 200 || response.statusCode >= 300) {
         throw HttpException('Source returned HTTP ${response.statusCode}');
