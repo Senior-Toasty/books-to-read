@@ -63,15 +63,18 @@ jobs:
           python3 -m pip install --break-system-packages Pillow
           python3 - <<'PY'
           from pathlib import Path
-          from PIL import Image
-          import shutil
+          from PIL import Image, ImageFile
 
+          # Recover intact pixels from the supplied JPEG if its final data
+          # segment is truncated. Do not substitute a different icon.
+          ImageFile.LOAD_TRUNCATED_IMAGES = True
           source = Path("app/assets/readiculous_icon.jpg")
           if not source.is_file():
               raise SystemExit(f"Exact supplied Readiculous artwork is missing: {source}")
           with Image.open(source) as original:
-    original.load()
-    image = original.convert("RGB").resize((512, 512), Image.Resampling.LANCZOS)
+              original.load()
+              image = original.convert("RGB").resize((512, 512), Image.Resampling.LANCZOS)
+
           root = Path("app/android/app/src/main/res")
           for density, size in (("mdpi",48),("hdpi",72),("xhdpi",96),("xxhdpi",144),("xxxhdpi",192)):
               folder = root / f"mipmap-{density}"
@@ -79,6 +82,7 @@ jobs:
               icon = image.resize((size,size), Image.Resampling.LANCZOS)
               icon.save(folder / "ic_launcher.png", optimize=True)
               icon.save(folder / "ic_launcher_foreground.png", optimize=True)
+
           adaptive = root / "mipmap-anydpi-v26"
           adaptive.mkdir(parents=True, exist_ok=True)
           xml = """<?xml version="1.0" encoding="utf-8"?>
@@ -89,7 +93,7 @@ jobs:
           """
           (adaptive / "ic_launcher.xml").write_text(xml, encoding="utf-8")
           (adaptive / "ic_launcher_round.xml").write_text(xml, encoding="utf-8")
-          print("Generated launcher icons from the user's exact supplied artwork.")
+          print("Generated launcher icons from the supplied Readiculous artwork.")
           PY
 
       - name: Set Android app display name
