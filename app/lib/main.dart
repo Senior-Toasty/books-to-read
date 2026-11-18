@@ -150,7 +150,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 child: ListTile(
                   leading: Icon(file.isAudio ? Icons.headphones : Icons.menu_book, color: const Color(0xFFB5A9FF)),
                   title: Text(file.title, maxLines: 2, overflow: TextOverflow.ellipsis),
-                  subtitle: Text('${file.source} · ${(file.bytes / (1024 * 1024)).toStringAsFixed(1)} MB'),
+                  subtitle: Text('${file.authors.isEmpty ? file.source : file.authors + ' · ' + file.source} · ${file.extension.toUpperCase()} · ${(file.bytes / (1024 * 1024)).toStringAsFixed(1)} MB'),
                   onTap: () => _openDownloaded(file),
                   trailing: IconButton(
                     tooltip: 'Delete download',
@@ -169,7 +169,7 @@ class _HomeScreenState extends State<HomeScreen> {
     final extension = book.extension;
     if (const {'epub', 'pdf', 'txt'}.contains(extension)) {
       await Navigator.of(context).push(MaterialPageRoute(
-        builder: (_) => BookReaderPage(path: book.path, title: book.title),
+        builder: (_) => BookReaderPage(path: book.path, title: book.title, author: book.authors),
       ));
     } else {
       await OpenFilex.open(book.path);
@@ -201,7 +201,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   child: ListTile(
                     leading: Icon(file.isAudio ? Icons.headphones : Icons.menu_book, color: const Color(0xFFB5A9FF)),
                     title: Text(file.title, maxLines: 2, overflow: TextOverflow.ellipsis),
-                    subtitle: Text('${file.source} · Downloaded'),
+                    subtitle: Text('${file.authors.isEmpty ? file.source : file.authors + ' · ' + file.source} · ${file.extension.toUpperCase()} · Offline'),
                     onTap: () => _openDownloaded(file),
                     trailing: IconButton(
                       tooltip: 'Delete download',
