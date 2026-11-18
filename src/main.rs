@@ -372,6 +372,15 @@ fn add_hit(hits: &mut Vec<Hit>, book: &Book, source: Source, candidate: HitCandi
     });
 }
 
+fn retry_after_seconds(value: &str, now: DateTime<Utc>) -> Option<u64> {
+    if let Ok(seconds) = value.trim().parse::<u64>() {
+        return Some(seconds);
+    }
+    DateTime::parse_from_rfc2822(value.trim()).ok().map(|date| {
+        (date.with_timezone(&Utc) - now).num_seconds().max(0) as u64
+    })
+}
+
 async fn get_json(client: &Client, url: &str, retry_failed: bool) -> Result<Value> {
     let attempts = if retry_failed { 5 } else { 2 };
     let mut last_error = String::from("request failed");
@@ -384,8 +393,7 @@ async fn get_json(client: &Client, url: &str, retry_failed: bool) -> Result<Valu
             Ok(response) if is_temporary_status(response.status()) => {
                 retry_after = response.headers().get(reqwest::header::RETRY_AFTER)
                     .and_then(|value| value.to_str().ok())
-                    .and_then(|value| value.parse::<u64>().ok())
-                    .map(|seconds| seconds.min(60));
+                    .and_then(|value| retry_after_seconds(value, Utc::now()));
                 last_error = format!("temporary HTTP status {}", response.status());
             }
             Ok(response) => bail!("HTTP {}", response.status()),
@@ -393,6 +401,11 @@ async fn get_json(client: &Client, url: &str, retry_failed: bool) -> Result<Valu
         }
         if attempt + 1 < attempts {
             let seconds = retry_after.unwrap_or_else(|| 1u64 << attempt.min(4));
+            // Do not retry earlier than a server's Retry-After instruction.
+            // Avoid sleeping for days: stop retrying and report the provider response.
+            if seconds > 3600 {
+                bail!("{last_error}; Retry-After was {seconds}s, exceeding the one-hour retry ceiling");
+            }
             sleep(Duration::from_secs(seconds)).await;
         }
     }
@@ -1378,6 +1391,7 @@ async fn main() -> Result<()> {
     let mut hits = Vec::new();
     let mut errors = Vec::new();
     let mut completed = 0usize;
+    let mut last_checkpoint = std::time::Instant::now();
     let mut results = stream::iter(jobs)
         .map(|(book, source)| {
             let client = client.clone();
@@ -1400,7 +1414,10 @@ async fn main() -> Result<()> {
                 message: error.to_string(),
             }),
         }
-        if completed.is_multiple_of(10) || completed == total_jobs {
+        let checkpoint_due = completed.is_multiple_of(10)
+            || completed == total_jobs
+            || last_checkpoint.elapsed() >= Duration::from_secs(5);
+        if checkpoint_due {
             println!("Progress: {completed}/{total_jobs} provider requests · {} matches · {} errors",
                 hits.len(), errors.len());
             let checkpoint = SearchRun {
@@ -1413,7 +1430,10 @@ async fn main() -> Result<()> {
                 errors: carried_forward_errors.iter().cloned().chain(errors.iter().cloned()).collect(),
             };
             tokio::fs::create_dir_all(&args.output).await?;
-            tokio::fs::write(&prior_json, serde_json::to_vec_pretty(&checkpoint)?).await?;
+            let checkpoint_tmp = args.output.join("bookhunter-results.json.tmp");
+            tokio::fs::write(&checkpoint_tmp, serde_json::to_vec_pretty(&checkpoint)?).await?;
+            tokio::fs::rename(&checkpoint_tmp, &prior_json).await?;
+            last_checkpoint = std::time::Instant::now();
         }
     }
 
@@ -1444,6 +1464,16 @@ async fn main() -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn retry_after_parses_seconds_and_http_dates_without_capping() {
+        let now = DateTime::parse_from_rfc2822("Wed, 18 Nov 2026 05:00:00 +0000").unwrap().with_timezone(&Utc);
+        assert_eq!(retry_after_seconds("120", now), Some(120));
+        assert_eq!(retry_after_seconds("7200", now), Some(7200));
+        assert_eq!(retry_after_seconds("Wed, 18 Nov 2026 05:02:00 +0000", now), Some(120));
+        assert_eq!(retry_after_seconds("Wed, 18 Nov 2026 04:59:00 +0000", now), Some(0));
+        assert_eq!(retry_after_seconds("invalid", now), None);
+    }
 
     #[test]
     fn expanded_provider_ids_are_supported() {
