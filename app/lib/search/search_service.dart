@@ -133,10 +133,17 @@ class SearchService {
         format: BookFormat.ebook,
         year: _text(raw['first_publish_year'], ''),
         coverUrl: coverId == null ? null : 'https://covers.openlibrary.org/b/id/${coverId}-M.jpg',
-        accessLabel: _text(raw['ebook_access'], 'Catalogue record'),
+        accessLabel: _openLibraryAccess(raw['ebook_access']),
       );
     }).whereType<BookResult>().toList();
   }
+
+  String _openLibraryAccess(dynamic value) => switch (value?.toString()) {
+        'public' => 'Public access reported',
+        'borrowable' => 'Free borrowing may be available',
+        'printdisabled' => 'Accessible lending',
+        _ => 'Catalogue record; access not verified',
+      };
 
   Future<List<BookResult>> _gutenberg(String query) async {
     final uri = Uri.https('gutendex.com', '/books', {'search': query, 'page': '1'});
@@ -170,11 +177,6 @@ class SearchService {
     final uri = Uri.https('archive.org', '/advancedsearch.php', {
       'q': 'title:${_escapeSearch(query)} AND mediatype:(texts OR audio)',
       'fl[]': 'identifier,title,creator,date,mediatype,description',
-      'fl[1]': 'identifier',
-      'fl[2]': 'title',
-      'fl[3]': 'creator',
-      'fl[4]': 'date',
-      'fl[5]': 'mediatype',
       'rows': '25',
       'page': '1',
       'output': 'json',
