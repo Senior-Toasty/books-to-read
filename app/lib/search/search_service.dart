@@ -79,7 +79,7 @@ class SearchService {
   }
 
   Future<Map<String, dynamic>> _getJson(Uri uri) async {
-    final response = await _client.get(uri, headers: const {'Accept': 'application/json'}).timeout(_timeout);
+    final response = await _client.get(uri, headers: const {'Accept': 'application/json', 'User-Agent': 'BookHunter/0.1.0 (https://github.com/Senior-Toasty/books-to-read)'}).timeout(_timeout);
     if (response.statusCode < 200 || response.statusCode >= 300) {
       throw Exception('HTTP ${response.statusCode}');
     }
@@ -99,7 +99,8 @@ class SearchService {
       final access = raw['accessInfo'] is Map ? raw['accessInfo'] as Map : const {};
       final authors = _join(info['authors']);
       final cover = info['imageLinks'] is Map ? (info['imageLinks'] as Map)['thumbnail']?.toString() : null;
-      final preview = info['previewLink']?.toString() ?? info['infoLink']?.toString();
+      final previewLink = _text(info['previewLink'], '');
+      final preview = previewLink.isNotEmpty ? previewLink : _text(info['infoLink'], '');
       if (preview == null || preview.isEmpty) return null;
       return BookResult(
         title: _text(info['title'], 'Untitled'),
