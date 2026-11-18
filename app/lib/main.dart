@@ -7,7 +7,6 @@ import 'package:bookhunter/library/library_store.dart';
 import 'package:bookhunter/downloads/download_store.dart';
 import 'package:bookhunter/reader/book_reader_page.dart';
 import 'package:open_filex/open_filex.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 void main() => runApp(const ReadiculousApp());
 
@@ -165,6 +164,37 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  Future<void> _downloadSaved(BookResult book) async {
+    if (book.downloadUrl == null || book.downloadUrl!.isEmpty || book.format == BookFormat.catalogue) {
+      if (!mounted) return;
+      await showDialog<void>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: const Text('No downloadable file'),
+          content: Text('${book.title} is saved as a catalogue record. ${book.source} did not provide a direct ebook or audiobook file, so Readiculous cannot save the actual book from this entry.'),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('Close')),
+          ],
+        ),
+      );
+      return;
+    }
+    try {
+      await DownloadStore.enqueue(book);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Download started. The book will appear under Available offline in your Library.')),
+        );
+      }
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Could not download this title: $error')),
+        );
+      }
+    }
+  }
+
   Future<void> _openDownloaded(DownloadedBook book) async {
     final extension = book.extension;
     if (const {'epub', 'pdf', 'txt'}.contains(extension)) {
@@ -221,15 +251,25 @@ class _HomeScreenState extends State<HomeScreen> {
                     leading: const Icon(Icons.bookmark, color: Color(0xFFB5A9FF)),
                     title: Text(book.title, maxLines: 2, overflow: TextOverflow.ellipsis),
                     subtitle: Text('${book.authors.isEmpty ? book.source : book.authors} · ${book.source}', maxLines: 2),
-                    trailing: IconButton(
-                      tooltip: 'Remove from library',
-                      icon: const Icon(Icons.delete_outline),
-                      onPressed: () => LibraryStore.remove(book),
+                    trailing: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        IconButton(
+                          tooltip: book.downloadUrl != null ? 'Download book' : 'No direct file available',
+                          icon: Icon(
+                            book.downloadUrl != null ? Icons.download_rounded : Icons.info_outline,
+                            color: book.downloadUrl != null ? const Color(0xFFB5A9FF) : Colors.white38,
+                          ),
+                          onPressed: () => _downloadSaved(book),
+                        ),
+                        IconButton(
+                          tooltip: 'Remove from library',
+                          icon: const Icon(Icons.delete_outline),
+                          onPressed: () => LibraryStore.remove(book),
+                        ),
+                      ],
                     ),
-                    onTap: () async {
-                      final uri = Uri.tryParse(book.url);
-                      if (uri != null) await launchUrl(uri, mode: LaunchMode.externalApplication);
-                    },
+                    onTap: () => _downloadSaved(book),
                   ),
                 ),
             ],
