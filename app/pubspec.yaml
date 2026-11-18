@@ -30,3 +30,4 @@ flutter:
   uses-material-design: true
   assets:
     - assets/readiculous_icon.jpg
+    - assets/readiculous_icon.png
