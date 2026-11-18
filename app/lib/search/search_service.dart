@@ -185,9 +185,11 @@ class SearchService {
     return books.map((raw) {
       if (raw is! Map) return null;
       final formats = raw['formats'] is Map ? raw['formats'] as Map : const {};
-      final url = formats['text/html']?.toString() ??
-          formats['application/epub+zip']?.toString() ??
-          formats['application/pdf']?.toString();
+      final downloadUrl = formats['application/epub+zip']?.toString() ??
+          formats['application/pdf']?.toString() ??
+          formats['text/plain; charset=utf-8']?.toString() ??
+          formats['text/plain']?.toString();
+      final url = downloadUrl ?? formats['text/html']?.toString();
       if (url == null || url.isEmpty) return null;
       final authors = raw['authors'] is List
           ? (raw['authors'] as List).map((author) => author is Map ? author['name']?.toString() ?? '' : '').where((name) => name.isNotEmpty).join(', ')
@@ -201,6 +203,7 @@ class SearchService {
         format: BookFormat.ebook,
         coverUrl: _https(cover),
         accessLabel: 'Public-domain ebook',
+        downloadUrl: downloadUrl,
       );
     }).whereType<BookResult>().toList();
   }
