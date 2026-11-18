@@ -234,7 +234,8 @@ class SearchService {
         year: _text(raw['date'], ''),
         coverUrl: 'https://archive.org/services/img/$identifier',
         description: _text(raw['description'], ''),
-        accessLabel: audio ? 'Audio catalogue record' : 'Text catalogue record',
+        accessLabel: audio ? 'Internet Archive audiobook file lookup' : 'Internet Archive ebook file lookup',
+        downloadUrl: 'ia://$identifier',
       );
     }).whereType<BookResult>().toList();
   }
@@ -264,7 +265,10 @@ class SearchService {
         format: BookFormat.audiobook,
         coverUrl: _https(raw['coverart']?.toString()),
         description: _text(raw['description'], ''),
-        accessLabel: 'Free public-domain audiobook',
+        accessLabel: raw['url_zip']?.toString().isNotEmpty == true
+            ? 'Free public-domain audiobook · downloadable archive'
+            : 'Free public-domain audiobook · no direct file supplied',
+        downloadUrl: raw['url_zip']?.toString(),
       );
     }).whereType<BookResult>().toList();
   }
