@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:bookhunter/changelog_page.dart';
+import 'package:bookhunter/reader/book_reader_page.dart';
 import 'package:bookhunter/search/book_result.dart';
 import 'package:bookhunter/search/search_service.dart';
 import 'package:bookhunter/library/library_store.dart';
@@ -130,7 +131,7 @@ class _HomeScreenState extends State<HomeScreen> {
           ],
           const SizedBox(height:12),
           if(books.isEmpty) const Padding(padding:EdgeInsets.symmetric(vertical:36),child:Column(children:[Icon(Icons.download_for_offline_outlined,size:52,color:Color(0xFFB5A9FF)),SizedBox(height:14),Text('Nothing downloaded yet',style:TextStyle(fontSize:18,fontWeight:FontWeight.w700)),SizedBox(height:6),Text('Add supported public-domain ebooks to the queue and they will download automatically.',textAlign:TextAlign.center,style:TextStyle(color:Colors.white60))])),
-          for(final book in books) Card(color:const Color(0xFF191E28),child:ListTile(leading:const Icon(Icons.menu_book_rounded,color:Color(0xFFB5A9FF)),title:Text(book.title,maxLines:2,overflow:TextOverflow.ellipsis),subtitle:Text('${book.source} · ${(book.bytes/1048576).toStringAsFixed(1)} MB'),onTap:()=>OpenFilex.open(book.path),trailing:IconButton(tooltip:'Delete downloaded file',icon:const Icon(Icons.delete_outline),onPressed:()=>DownloadStore.remove(book)))),
+          for(final book in books) Card(color:const Color(0xFF191E28),child:ListTile(leading:const Icon(Icons.menu_book_rounded,color:Color(0xFFB5A9FF)),title:Text(book.title,maxLines:2,overflow:TextOverflow.ellipsis),subtitle:Text('${book.source} · ${(book.bytes/1048576).toStringAsFixed(1)} MB'),onTap:()=>Navigator.of(context).push(MaterialPageRoute(builder:(_)=>BookReaderPage(path:book.path,title:book.title))),trailing:IconButton(tooltip:'Delete downloaded file',icon:const Icon(Icons.delete_outline),onPressed:()=>DownloadStore.remove(book)))),
         ]);
       },
     );
