@@ -60,7 +60,8 @@ jobs:
 
       - name: Generate Readiculous launcher icons
         run: |
-          python3 -m pip install --user pillow
+          sudo apt-get update
+          sudo apt-get install -y python3-pil
           python3 - <<'PY'
           from pathlib import Path
           from PIL import Image
