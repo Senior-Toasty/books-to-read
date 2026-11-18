@@ -331,20 +331,21 @@ class _SearchResultsPageState extends State<SearchResultsPage> {
 
   Widget _resultCard(BookResult item) {
     final isAudio = item.format == BookFormat.audiobook;
+    final formatLabel = switch (item.format) { BookFormat.ebook => 'Ebook', BookFormat.audiobook => 'Audiobook', BookFormat.catalogue => 'Catalogue' };
     return Card(
       color: const Color(0xFF191E28),
       margin: const EdgeInsets.only(bottom: 10),
       child: Padding(
         padding: const EdgeInsets.all(12),
         child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          _cover(item.coverUrl, isAudio),
+          _cover(item.coverUrl, item.format),
           const SizedBox(width: 12),
           Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Text(item.title, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
             if (item.authors.isNotEmpty) Padding(padding: const EdgeInsets.only(top: 4), child: Text(item.authors, style: const TextStyle(color: Colors.white60, fontSize: 12))),
             const SizedBox(height: 8),
             Wrap(spacing: 6, runSpacing: 6, children: [
-              _chip(isAudio ? 'Audiobook' : 'Ebook', isAudio ? const Color(0xFF54C6B3) : const Color(0xFFB5A9FF)),
+              _chip(formatLabel, isAudio ? const Color(0xFF54C6B3) : item.format == BookFormat.catalogue ? Colors.white54 : const Color(0xFFB5A9FF)),
               _chip(item.source, Colors.white54),
               if (item.year != null && item.year!.isNotEmpty) _chip(item.year!, Colors.white38),
             ]),
@@ -361,11 +362,12 @@ class _SearchResultsPageState extends State<SearchResultsPage> {
     );
   }
 
-  Widget _cover(String? url, bool audio) {
+  Widget _cover(String? url, BookFormat format) {
+    final icon = format == BookFormat.audiobook ? Icons.headphones : format == BookFormat.catalogue ? Icons.library_books_outlined : Icons.menu_book;
     return ClipRRect(
       borderRadius: BorderRadius.circular(9),
       child: SizedBox(width: 74, height: 106, child: url == null
-          ? Container(color: const Color(0xFF292E3A), child: Icon(audio ? Icons.headphones : Icons.menu_book, color: Colors.white38, size: 28))
+          ? Container(color: const Color(0xFF292E3A), child: Icon(icon, color: Colors.white38, size: 28))
           : Image.network(url, fit: BoxFit.cover, errorBuilder: (_, __, ___) => Container(color: const Color(0xFF292E3A), child: Icon(audio ? Icons.headphones : Icons.menu_book, color: Colors.white38, size: 28)))),
     );
   }
