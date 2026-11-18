@@ -315,10 +315,12 @@ class SearchService {
       }).where((name) => name.isNotEmpty).join('; ') : '';
       final best = raw['best_oa_location'] is Map ? raw['best_oa_location'] as Map : const {};
       final primary = raw['primary_location'] is Map ? raw['primary_location'] as Map : const {};
-      final url = _text(best['pdf_url'], '') .isNotEmpty
-          ? _text(best['pdf_url'], '')
-          : _text(best['landing_page_url'], '').isNotEmpty
-              ? _text(best['landing_page_url'], '')
+      final pdfUrl = _text(best['pdf_url'], '');
+      final landingUrl = _text(best['landing_page_url'], '');
+      final url = pdfUrl.isNotEmpty
+          ? pdfUrl
+          : landingUrl.isNotEmpty
+              ? landingUrl
               : _text(primary['landing_page_url'], raw['id']?.toString() ?? '');
       if (url.isEmpty) return null;
       return BookResult(
