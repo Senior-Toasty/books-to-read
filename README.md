@@ -187,7 +187,7 @@ The iOS artifact is unsigned and intended for build validation; installing it on
 
 ## BookHunter mobile app (Stages 1–2)
 
-The Flutter app currently has a Discover screen, Library and Downloads navigation, and multi-source search for ebooks and audiobooks.
+The Flutter app currently has a Discover screen, Library and Downloads navigation, and multi-source search across 14 catalogues for ebook, audiobook, and metadata records.
 
 ### Search providers
 
@@ -196,7 +196,16 @@ The Flutter app currently has a Discover screen, Library and Downloads navigatio
 - Project Gutenberg (Gutendex)
 - Internet Archive (text and audio records)
 - LibriVox (audiobooks)
+- Library of Congress
+- Wikisource
+- OpenAlex
+- OAPEN
+- OpenAIRE
+- Crossref
+- Wikidata
+- DOAB
+- Zenodo
 
-Searches fan out concurrently; individual provider failures are surfaced without discarding other results. Results include catalogue/source links, covers where available, format labels, and basic access notes. The app does not claim a catalogue record is a free downloadable file; availability and rights must be verified at the source.
+Searches fan out concurrently; individual provider failures are surfaced without discarding other results. Results include source links, covers where available, format labels, and basic access notes. Metadata-only research and catalogue records are labelled separately from ebook and audiobook records. The app does not claim a catalogue record is a free downloadable file; availability and rights must be verified at the source.
 
 Search currently runs in Flutter/Dart networking. Rust core remains the shared engine foundation and is planned to receive the provider and matching layer as mobile FFI is introduced.
