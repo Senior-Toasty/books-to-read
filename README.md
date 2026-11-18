@@ -171,3 +171,48 @@
 This repository now includes **BookHunter**, a Rust application that searches legal free-reading and open-access catalogues for the books in [README2.md](README2.md). It exports HTML, JSON, CSV and Markdown reports, and can be run from a phone through GitHub Actions without installing Rust.
 
 Start with [BOOKHUNTER.md](BOOKHUNTER.md) for setup, sources, access labels and instructions for running a search from the GitHub mobile website. The original reading-list files are retained.
+
+
+## BookHunter App (Stage 1)
+
+A Flutter mobile app shell and Rust core are being developed alongside the existing CLI search engine.
+
+- Flutter app: `app/` (Discover, Library, Downloads navigation shell)
+- Rust core: `rust-core/` (platform-independent shared core)
+- Automated builds: `.github/workflows/app-build.yml` creates Android APK and unsigned iOS IPA artifacts
+- Tag a release `v*` to attach both platform builds to a GitHub Release
+
+The iOS artifact is unsigned and intended for build validation; installing it on a device requires Apple signing and distribution setup.
+
+
+## BookHunter mobile app (Stages 1–2)
+
+The Flutter app currently has a Discover screen, Library and Downloads navigation, and multi-source search across 14 catalogues for ebook, audiobook, and metadata records.
+
+### Search providers
+
+- Google Books
+- Open Library
+- Project Gutenberg (Gutendex)
+- Internet Archive (text and audio records)
+- LibriVox (audiobooks)
+- Library of Congress
+- Wikisource
+- OpenAlex
+- OAPEN
+- OpenAIRE
+- Crossref
+- Wikidata
+- DOAB
+- Zenodo
+
+Searches fan out concurrently; individual provider failures are surfaced without discarding other results. Results include source links, covers where available, format labels, and basic access notes. Metadata-only research and catalogue records are labelled separately from ebook and audiobook records. The app does not claim a catalogue record is a free downloadable file; availability and rights must be verified at the source.
+
+Search currently runs in Flutter/Dart networking. Rust core remains the shared engine foundation and is planned to receive the provider and matching layer as mobile FFI is introduced.
+
+
+## BookHunter mobile app (Stage 3 foundation)
+
+Stage 3 begins the offline experience with a persistent on-device library. Search results can be saved and removed, and saved metadata remains available after the app is closed. This stage also detects the all-provider DNS failure pattern and shows device-network troubleshooting guidance instead of making fourteen catalogue errors look like fourteen unrelated outages.
+
+The current save feature stores book metadata and source links; it does **not** download book files. Direct-file downloads, progress, storage management, and offline reading are separate follow-on work because catalogue landing pages are not necessarily downloadable files and rights must be checked.

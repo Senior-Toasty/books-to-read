@@ -1,0 +1,12 @@
+[package]
+name = "bookhunter-core"
+version = "0.1.0"
+edition = "2021"
+description = "Shared BookHunter search and library core"
+license = "MIT"
+
+[lib]
+name = "bookhunter_core"
+path = "src/lib.rs"
+
+[dependencies]

@@ -1,0 +1,162 @@
+name: Readiculous Android Test Build
+
+on:
+  push:
+    branches: ["main"]
+    paths:
+      - "app/**"
+      - ".github/workflows/app-build.yml"
+  pull_request:
+    branches: ["main"]
+    paths:
+      - "app/**"
+      - ".github/workflows/app-build.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ridiculous-android-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  android-test-build:
+    name: Analyze, test and build installable Android APK
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Confirm runner is available
+        run: |
+          echo "Runner: $RUNNER_OS / $RUNNER_ARCH"
+          uname -a
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Resolve Flutter dependencies
+        working-directory: app
+        run: flutter pub get
+
+      - name: Render exact Readiculous SVG artwork
+        run: |
+          python3 -m pip install --break-system-packages CairoSVG Pillow
+          python3 - <<'PY'
+          import cairosvg
+          from pathlib import Path
+          source = Path("app/assets/readiculous_icon.svg")
+          if not source.is_file():
+              raise SystemExit(f"Exact Readiculous SVG artwork missing: {source}")
+          cairosvg.svg2png(url=str(source), write_to="app/assets/readiculous_icon.png", output_width=1024, output_height=1024)
+          print("Rendered the exact hand-drawn SVG logo into the app PNG asset.")
+          PY
+
+      - name: Analyze Dart code
+        working-directory: app
+        run: flutter analyze --no-fatal-infos
+
+      - name: Run Flutter tests
+        working-directory: app
+        run: flutter test --reporter expanded
+
+      - name: Generate Android project files
+        run: |
+          flutter create --project-name bookhunter --org com.bookhunter --platforms android --no-pub /tmp/bookhunter-platform
+          mkdir -p app/android
+          cp -a /tmp/bookhunter-platform/android/. app/android/
+
+
+      - name: Generate Readiculous launcher icons
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          from PIL import Image
+          source = Path("app/assets/readiculous_icon.png")
+          if not source.is_file():
+              raise SystemExit(f"Rendered Readiculous artwork missing: {source}")
+          with Image.open(source) as original:
+              original.load()
+              image = original.convert("RGBA").resize((512, 512), Image.Resampling.LANCZOS)
+          root = Path("app/android/app/src/main/res")
+          for density, size in (("mdpi",48),("hdpi",72),("xhdpi",96),("xxhdpi",144),("xxxhdpi",192)):
+              folder = root / f"mipmap-{density}"
+              folder.mkdir(parents=True, exist_ok=True)
+              icon = image.resize((size,size), Image.Resampling.LANCZOS)
+              icon.save(folder / "ic_launcher.png")
+              icon.save(folder / "ic_launcher_round.png")
+          adaptive = root / "mipmap-anydpi-v26"
+          adaptive.mkdir(parents=True, exist_ok=True)
+          (adaptive / "ic_launcher.xml").write_text('''<?xml version="1.0" encoding="utf-8"?>
+          <adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+              <background android:drawable="@android:color/black"/>
+              <foreground android:drawable="@mipmap/ic_launcher"/>
+          </adaptive-icon>''')
+          (adaptive / "ic_launcher_round.xml").write_text('''<?xml version="1.0" encoding="utf-8"?>
+          <adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+              <background android:drawable="@android:color/black"/>
+              <foreground android:drawable="@mipmap/ic_launcher_round"/>
+          </adaptive-icon>''')
+          print("Generated Android launcher icons from the exact Readiculous SVG artwork.")
+          PY
+
+      - name: Set Android app display name
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+
+          manifest_path = Path("app/android/app/src/main/AndroidManifest.xml")
+          manifest = manifest_path.read_text(encoding="utf-8")
+          updated, count = re.subn(r'android:label="[^"]*"', 'android:label="Readiculous"', manifest, count=1)
+          if count != 1:
+              raise SystemExit("Could not set Android launcher label")
+          manifest_path.write_text(updated, encoding="utf-8")
+          print("Android launcher label set to Readiculous.")
+          PY
+
+      - name: Ensure Android internet permission
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+
+          manifest_path = Path("app/android/app/src/main/AndroidManifest.xml")
+          if not manifest_path.is_file():
+              raise SystemExit(f"Android manifest not generated: {manifest_path}")
+
+          manifest = manifest_path.read_text(encoding="utf-8")
+          permission = '    <uses-permission android:name="android.permission.INTERNET"/>'
+          if "android.permission.INTERNET" not in manifest:
+              match = re.search(r"<manifest\b[^>]*>", manifest)
+              if not match:
+                  raise SystemExit("Could not find the manifest root element")
+              manifest = manifest[:match.end()] + "\n" + permission + manifest[match.end():]
+
+          manifest_path.write_text(manifest, encoding="utf-8")
+          if "android.permission.INTERNET" not in manifest_path.read_text(encoding="utf-8"):
+              raise SystemExit("INTERNET permission verification failed")
+          print("Verified INTERNET permission in the Android manifest.")
+          PY
+
+      - name: Build release APK
+        working-directory: app
+        run: flutter build apk --release
+
+      - name: Verify APK exists
+        run: |
+          test -s app/build/app/outputs/flutter-apk/app-release.apk
+          ls -lh app/build/app/outputs/flutter-apk/app-release.apk
+
+      - name: Upload installable APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: Readiculous-Android-APK
+          path: app/build/app/outputs/flutter-apk/app-release.apk
+          if-no-files-found: error
+          retention-days: 30
