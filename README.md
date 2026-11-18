@@ -171,3 +171,15 @@
 This repository now includes **BookHunter**, a Rust application that searches legal free-reading and open-access catalogues for the books in [README2.md](README2.md). It exports HTML, JSON, CSV and Markdown reports, and can be run from a phone through GitHub Actions without installing Rust.
 
 Start with [BOOKHUNTER.md](BOOKHUNTER.md) for setup, sources, access labels and instructions for running a search from the GitHub mobile website. The original reading-list files are retained.
+
+
+## BookHunter App (Stage 1)
+
+A Flutter mobile app shell and Rust core are being developed alongside the existing CLI search engine.
+
+- Flutter app: `app/` (Discover, Library, Downloads navigation shell)
+- Rust core: `rust-core/` (platform-independent shared core)
+- Automated builds: `.github/workflows/app-build.yml` creates Android APK and unsigned iOS IPA artifacts
+- Tag a release `v*` to attach both platform builds to a GitHub Release
+
+The iOS artifact is unsigned and intended for build validation; installing it on a device requires Apple signing and distribution setup.
