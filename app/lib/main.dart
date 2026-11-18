@@ -7,7 +7,6 @@ import 'package:bookhunter/search/book_result.dart';
 import 'package:bookhunter/search/search_service.dart';
 import 'package:bookhunter/library/library_store.dart';
 import 'package:bookhunter/downloads/download_store.dart';
-import 'package:open_filex/open_filex.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 void main() => runApp(const ReadiculousApp());
