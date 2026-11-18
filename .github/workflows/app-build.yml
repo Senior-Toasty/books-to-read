@@ -69,7 +69,7 @@ jobs:
           manifest = path.read_text(encoding="utf-8")
           permission = '<uses-permission android:name="android.permission.INTERNET"/>'
           if permission not in manifest:
-              manifest = manifest.replace("<application", f"{permission}\\n    <application", 1)
+              manifest = manifest.replace("<application", permission + "\n    <application", 1)
           path.write_text(manifest, encoding="utf-8")
           if permission not in manifest:
               raise SystemExit("INTERNET permission was not added to the release manifest")
