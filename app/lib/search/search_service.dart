@@ -235,7 +235,7 @@ class SearchService {
         coverUrl: 'https://archive.org/services/img/$identifier',
         description: _text(raw['description'], ''),
         accessLabel: audio ? 'Internet Archive audiobook file lookup' : 'Internet Archive ebook file lookup',
-        downloadUrl: 'ia://$identifier',
+        downloadUrl: 'ia://$identifier?type=${audio ? 'audio' : 'ebook'}',
       );
     }).whereType<BookResult>().toList();
   }
