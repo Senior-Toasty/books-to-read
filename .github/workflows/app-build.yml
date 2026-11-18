@@ -1,4 +1,4 @@
-name: BookHunter Android Test Build
+name: Readiculous Android Test Build
 
 on:
   push:
@@ -17,7 +17,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: bookhunter-android-${{ github.event.pull_request.number || github.ref }}
+  group: ridiculous-android-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -58,6 +58,21 @@ jobs:
           mkdir -p app/android
           cp -a /tmp/bookhunter-platform/android/. app/android/
 
+      - name: Set Android app display name
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+
+          manifest_path = Path("app/android/app/src/main/AndroidManifest.xml")
+          manifest = manifest_path.read_text(encoding="utf-8")
+          updated, count = re.subn(r'android:label="[^"]*"', 'android:label="Readiculous"', manifest, count=1)
+          if count != 1:
+              raise SystemExit("Could not set Android launcher label")
+          manifest_path.write_text(updated, encoding="utf-8")
+          print("Android launcher label set to Readiculous.")
+          PY
+
       - name: Ensure Android internet permission
         run: |
           python3 - <<'PY'
@@ -94,7 +109,7 @@ jobs:
       - name: Upload installable APK
         uses: actions/upload-artifact@v4
         with:
-          name: BookHunter-Android-APK
+          name: Readiculous-Android-APK
           path: app/build/app/outputs/flutter-apk/app-release.apk
           if-no-files-found: error
           retention-days: 30
