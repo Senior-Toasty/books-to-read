@@ -16,7 +16,7 @@ void main() {
     expect(find.text('Ebooks'), findsOneWidget);
     expect(find.text('Audiobooks'), findsOneWidget);
     expect(find.text('Discover'), findsOneWidget);
-    expect(find.text('Search five catalogues at once'), findsOneWidget);
+    expect(find.text('Search fourteen catalogues at once'), findsOneWidget);
   });
 
   testWidgets('navigation opens library and downloads placeholders', (tester) async {
@@ -36,6 +36,15 @@ void main() {
       if (request.url.host == 'gutendex.com') return http.Response(jsonEncode({'results': []}), 200);
       if (request.url.host == 'archive.org') return http.Response(jsonEncode({'response': {'docs': []}}), 200);
       if (request.url.host == 'librivox.org') return http.Response(jsonEncode({'books': []}), 200);
+      if (request.url.host == 'www.loc.gov') return http.Response(jsonEncode({'results': []}), 200);
+      if (request.url.host == 'en.wikisource.org') return http.Response(jsonEncode({'query': {'search': []}}), 200);
+      if (request.url.host == 'api.openalex.org') return http.Response(jsonEncode({'results': []}), 200);
+      if (request.url.host == 'library.oapen.org') return http.Response(jsonEncode({'searchResult': {'searchResults': {'entry': []}}}), 200);
+      if (request.url.host == 'api.openaire.eu') return http.Response(jsonEncode({'results': []}), 200);
+      if (request.url.host == 'api.crossref.org') return http.Response(jsonEncode({'message': {'items': []}}), 200);
+      if (request.url.host == 'www.wikidata.org') return http.Response(jsonEncode({'search': []}), 200);
+      if (request.url.host == 'directory.doabooks.org') return http.Response(jsonEncode({'searchResult': {'searchResults': {'entry': []}}}), 200);
+      if (request.url.host == 'zenodo.org') return http.Response(jsonEncode({'hits': {'hits': []}}), 200);
       return http.Response('', 404);
     });
     await tester.pumpWidget(MaterialApp(home: SearchResultsPage(query: 'Dune', searchService: SearchService(client: client))));
