@@ -1,6 +1,6 @@
 import 'dart:io';
 
-import 'package:epub_view/epub_view.dart';
+import 'package:epub_view/epub_view.dart' hide DefaultBuilderOptions;
 import 'package:flutter/material.dart';
 import 'package:pdfx/pdfx.dart';
 
