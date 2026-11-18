@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+<defs><linearGradient id="bg" x2="0.8" y2="1"><stop stop-color="#263b61"/><stop offset="1" stop-color="#142747"/></linearGradient><filter id="grain"><feTurbulence type="fractalNoise" baseFrequency=".72" numOctaves="2" stitchTiles="stitch"/><feColorMatrix values="1 0 0 0 0 0 1 0 0 0 0 0 1 0 0 0 0 0 .09 0"/></filter></defs>
+<rect width="512" height="512" rx="112" fill="url(#bg)"/>
+<path d="M50 390 Q110 355 160 390 T270 390 T460 390" fill="none" stroke="#40577c" stroke-width="3" opacity=".45"/>
+<g stroke="#10213d" stroke-width="13" stroke-linecap="round" stroke-linejoin="round">
+<path d="M111 304 Q180 286 252 309 Q324 282 402 302 L399 362 Q321 347 254 371 Q180 346 108 364Z" fill="#7892bf"/>
+<path d="M105 245 Q179 223 254 251 Q326 225 405 244 L400 302 Q325 284 254 309 Q178 282 108 304Z" fill="#f1dfbd"/>
+<path d="M124 185 Q188 167 254 191 Q326 166 388 185 L402 244 Q324 224 254 251 Q180 225 105 245Z" fill="#304b78"/>
+</g>
+<g fill="none" stroke-linecap="round" stroke-linejoin="round">
+<path d="M126 195 Q188 178 251 202 Q322 178 382 195" stroke="#8ca3cc" stroke-width="5"/>
+<path d="M125 257 Q185 239 252 265 Q322 239 385 257" stroke="#d8c6a7" stroke-width="4"/>
+<path d="M128 317 Q190 300 252 324 Q320 300 382 317" stroke="#b6c4df" stroke-width="4"/>
+<path d="M253 202 Q246 258 254 309 Q261 335 254 371" stroke="#172b4d" stroke-width="7"/>
+<path d="M160 219 l44 -8 M309 213 l42 -8 M158 277 l47 -7 M307 273 l45 -8 M158 337 l48 -7 M309 331 l40 -6" stroke="#f5e6ca" stroke-width="4" opacity=".8"/>
+<path d="M84 173 Q62 151 78 128 Q93 108 117 123" stroke="#f1d9a8" stroke-width="8"/>
+<path d="M397 145 Q428 127 438 157" stroke="#f1d9a8" stroke-width="7"/>
+<path d="M414 334 q18 -16 34 0 M74 340 q14 -14 27 0" stroke="#9ab0d4" stroke-width="6"/>
+</g>
+<g fill="#f2dba9"><path d="M93 96 l7 17 17 7 -17 7 -7 17 -7 -17 -17 -7 17 -7z"/><circle cx="417" cy="214" r="5"/><circle cx="75" cy="270" r="4"/><path d="M424 80 l5 12 12 5 -12 5 -5 12 -5 -12 -12 -5 12 -5z"/></g>
+<rect width="512" height="512" rx="112" filter="url(#grain)" opacity=".16"/>
+</svg>
