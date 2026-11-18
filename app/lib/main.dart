@@ -1,5 +1,6 @@
 // ignore_for_file: deprecated_member_use
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:bookhunter/search/book_result.dart';
 import 'package:bookhunter/search/search_service.dart';
 import 'package:bookhunter/library/library_store.dart';
@@ -187,15 +188,7 @@ class _HomeScreenState extends State<HomeScreen> {
       children: [
         Row(
           children: [
-            Container(
-              width: 46,
-              height: 46,
-              decoration: BoxDecoration(
-                color: const Color(0xFF8C7CFF).withValues(alpha: 0.16),
-                borderRadius: BorderRadius.circular(15),
-              ),
-              child: const Icon(Icons.auto_stories_rounded, color: Color(0xFFB5A9FF)),
-            ),
+            ClipRRect(borderRadius: BorderRadius.circular(15), child: SvgPicture.asset('assets/readiculous_icon.svg', width: 46, height: 46)),
             const SizedBox(width: 12),
             const Column(
               crossAxisAlignment: CrossAxisAlignment.start,
