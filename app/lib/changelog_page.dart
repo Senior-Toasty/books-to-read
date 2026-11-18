@@ -3,6 +3,12 @@ import 'package:flutter/material.dart';
 class ChangelogPage extends StatelessWidget {
   const ChangelogPage({super.key});
   static const entries = [
+    ('0.5.0', 'November 2026', [
+      'Recreated the Readiculous logo to match the supplied stacked-books artwork.',
+      'The app icon and in-app logo now render from the same SVG artwork.',
+      'EPUB and PDF loading errors are shown clearly instead of leaving a blank reader.',
+      'Downloaded books now keep author details and show their real file format in Library.',
+    ]),
     ('0.4.0', 'November 2026', [
       'Download supported ebooks and audiobooks directly inside Readiculous.',
       'Keep downloaded files in your Library for offline access.',
